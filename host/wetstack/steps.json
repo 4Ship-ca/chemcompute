@@ -1,0 +1,284 @@
+[
+ {
+  "id": "P0",
+  "title": "Bench, safety and calibration",
+  "gate": "G0",
+  "steps": [
+   {
+    "id": "P0.1",
+    "title": "Inventory against the BOM"
+   },
+   {
+    "id": "P0.2",
+    "title": "Set up the bench"
+   },
+   {
+    "id": "P0.3",
+    "title": "Install the software"
+   },
+   {
+    "id": "P0.4",
+    "title": "Check the scale"
+   },
+   {
+    "id": "P0.5",
+    "title": "Calibrate the 1000 uL pipette"
+   },
+   {
+    "id": "P0.6",
+    "title": "Calibrate the 100 uL pipette"
+   },
+   {
+    "id": "P0.7",
+    "title": "Read the safety rules and sign off"
+   }
+  ]
+ },
+ {
+  "id": "P1",
+  "title": "Eyes: the optical readout bench",
+  "gate": "G1",
+  "steps": [
+   {
+    "id": "P1.1",
+    "title": "Print the plate frame"
+   },
+   {
+    "id": "P1.2",
+    "title": "Build the light station"
+   },
+   {
+    "id": "P1.3",
+    "title": "Lock the camera"
+   },
+   {
+    "id": "P1.4",
+    "title": "Mark the wells"
+   },
+   {
+    "id": "P1.5",
+    "title": "Make the bromothymol blue stock (0.4 mg/mL)"
+   },
+   {
+    "id": "P1.6",
+    "title": "Make 0.1 M sodium carbonate"
+   },
+   {
+    "id": "P1.7",
+    "title": "Run the dilution series"
+   },
+   {
+    "id": "P1.8",
+    "title": "Stability run"
+   }
+  ]
+ },
+ {
+  "id": "P2",
+  "title": "First nonlinearity: manual XOR",
+  "gate": "G2",
+  "steps": [
+   {
+    "id": "P2.1",
+    "title": "Make the phenol red stock (0.2 mg/mL)"
+   },
+   {
+    "id": "P2.2",
+    "title": "Make the input stocks"
+   },
+   {
+    "id": "P2.3",
+    "title": "Balance the inputs"
+   },
+   {
+    "id": "P2.4",
+    "title": "Make the XOR medium"
+   },
+   {
+    "id": "P2.5",
+    "title": "Run the dual-indicator plates"
+   },
+   {
+    "id": "P2.6",
+    "title": "Run the single-indicator control plate"
+   }
+  ]
+ },
+ {
+  "id": "P3",
+  "title": "Electric write: the Faraday cell",
+  "gate": "G3",
+  "steps": [
+   {
+    "id": "P3.1",
+    "title": "Build the controller"
+   },
+   {
+    "id": "P3.2",
+    "title": "Flash the firmware"
+   },
+   {
+    "id": "P3.3",
+    "title": "Dry test the relays"
+   },
+   {
+    "id": "P3.4",
+    "title": "Print and fit the lid"
+   },
+   {
+    "id": "P3.5",
+    "title": "Make the electrodes"
+   },
+   {
+    "id": "P3.6",
+    "title": "Verify the platinum"
+   },
+   {
+    "id": "P3.7",
+    "title": "Make salt bridges"
+   },
+   {
+    "id": "P3.8",
+    "title": "Calibrate coulomb counting"
+   },
+   {
+    "id": "P3.9",
+    "title": "Standards and dose response"
+   }
+  ]
+ },
+ {
+  "id": "P4",
+  "title": "The chemical neuron: threshold and reset",
+  "gate": "G4",
+  "steps": [
+   {
+    "id": "P4.1",
+    "title": "Make neuron media"
+   },
+   {
+    "id": "P4.2",
+    "title": "Threshold sweep"
+   },
+   {
+    "id": "P4.3",
+    "title": "Overnight reset run"
+   }
+  ]
+ },
+ {
+  "id": "P5",
+  "title": "Logic and the first stack",
+  "gate": "G5",
+  "steps": [
+   {
+    "id": "P5.1",
+    "title": "Find the AND and OR buffer levels"
+   },
+   {
+    "id": "P5.2",
+    "title": "Truth tables"
+   },
+   {
+    "id": "P5.3",
+    "title": "Wire the stack"
+   },
+   {
+    "id": "P5.4",
+    "title": "Run 40 randomized trials"
+   },
+   {
+    "id": "P5.5",
+    "title": "Cut-link control"
+   }
+  ]
+ },
+ {
+  "id": "P6",
+  "title": "Junctions: the ionic diode",
+  "gate": "G6",
+  "steps": [
+   {
+    "id": "P6.1",
+    "title": "Make Ag/AgCl electrodes"
+   },
+   {
+    "id": "P6.2",
+    "title": "Cationic gel"
+   },
+   {
+    "id": "P6.3",
+    "title": "Anionic gel"
+   },
+   {
+    "id": "P6.4",
+    "title": "Cast three diode tubes and one control"
+   },
+   {
+    "id": "P6.5",
+    "title": "I-V sweeps"
+   },
+   {
+    "id": "P6.6",
+    "title": "Hysteresis on the scope"
+   }
+  ]
+ },
+ {
+  "id": "P7",
+  "title": "Fiber eyes",
+  "gate": "G7",
+  "steps": [
+   {
+    "id": "P7.1",
+    "title": "Print fiber parts"
+   },
+   {
+    "id": "P7.2",
+    "title": "Cut and polish fiber"
+   },
+   {
+    "id": "P7.3",
+    "title": "Assemble and read"
+   },
+   {
+    "id": "P7.4",
+    "title": "Dose sweep with both readers"
+   }
+  ]
+ },
+ {
+  "id": "P8",
+  "title": "Sun power and energy per operation",
+  "gate": "G8",
+  "steps": [
+   {
+    "id": "P8.1",
+    "title": "Build the power board"
+   },
+   {
+    "id": "P8.2",
+    "title": "Daylight session"
+   }
+  ]
+ },
+ {
+  "id": "P9",
+  "title": "MVP integration",
+  "gate": "G9",
+  "steps": [
+   {
+    "id": "P9.1",
+    "title": "Full demo run"
+   },
+   {
+    "id": "P9.2",
+    "title": "Generate the report"
+   },
+   {
+    "id": "P9.3",
+    "title": "Debrief"
+   }
+  ]
+ }
+]
