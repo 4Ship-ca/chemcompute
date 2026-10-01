@@ -17,7 +17,8 @@ https://claude.ai/artifact/Spr4Hz1cUCdgWMjxmdhvYG
 runs the self-test after a fresh install, then starts the lab workspace and opens it in your browser.
 Double-click it again while it's running and it just reopens the page. From a prompt it also runs any
 other command in the venv: `start_wetstack.bat gate G0`, `start_wetstack.bat g1-linearity --sim`.
-Set `WETSTACK_PORT` to use a port other than 8765.
+It serves on port 8765, or the next free port if another program already has it; set
+`WETSTACK_PORT` to start the search somewhere else.
 
 By hand (Windows or Linux):
 

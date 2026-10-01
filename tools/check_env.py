@@ -4,9 +4,11 @@
                                            pyproject.toml is installed, new enough and importable,
                                            and wetstack is installed from this folder; else exit 1
                                            (the launcher then runs pip install -e .).
-    python tools/check_env.py --running N  exit 0 if this folder's workspace server already answers
-                                           on port N, 1 if the port is free, 2 if another program
-                                           (or a WetStack server from another folder) holds it.
+    python tools/check_env.py --pick-port N
+                                           prints RUNNING <port> if this folder's workspace already
+                                           answers on a port from N to N+19, else FREE <port> for the
+                                           first free one, else NONE <N> (exit 2). The launcher reads
+                                           that line; explanations go to stderr.
 """
 from __future__ import annotations
 
@@ -16,6 +18,7 @@ import importlib.metadata as md
 import json
 import os
 import re
+import socket
 import sys
 import urllib.error
 import urllib.request
@@ -117,37 +120,68 @@ def check() -> int:
     return 0
 
 
-def running(port: int) -> int:
+def _can_bind(port: int) -> bool:
+    """Instant and reliable on Windows, where a refused connection to a closed port takes ~2 s."""
+    with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
+        try:
+            s.bind(("127.0.0.1", port))
+        except OSError:
+            return False
+    return True
+
+
+def probe(port: int) -> tuple[str, str]:
+    """('free' | 'ours' | 'busy', who holds it)."""
+    if _can_bind(port):
+        return "free", ""
     opener = urllib.request.build_opener(urllib.request.ProxyHandler({}))   # never send localhost via a proxy
     try:
-        with opener.open(f"http://127.0.0.1:{port}/api/ping", timeout=2) as resp:
+        with opener.open(f"http://127.0.0.1:{port}/api/ping", timeout=3) as resp:
             info = json.loads(resp.read().decode("utf-8"))
-    except urllib.error.HTTPError:
-        info = {}
     except urllib.error.URLError as exc:
-        if isinstance(exc.reason, ConnectionRefusedError):
-            return 1
-        info = {}
-    except ConnectionRefusedError:
-        return 1
+        refused = isinstance(getattr(exc, "reason", None), ConnectionRefusedError)
+        # Nothing listening, only old connections in TIME_WAIT: the server can still bind on Linux/macOS.
+        return ("free", "") if refused and os.name != "nt" else ("busy", "another program")
     except (OSError, ValueError):
-        info = {}
+        return "busy", "another program"
     if not isinstance(info, dict) or info.get("server") != "wetstack":
-        print(f"Port {port} is in use by another program.")
-        return 2
+        return "busy", "another program"
     here = os.path.normcase(os.path.realpath(ROOT))
     there = os.path.normcase(os.path.realpath(str(info.get("repo", ""))))
     if here != there:
-        print(f"Port {port} is in use by a WetStack workspace from another folder: {info.get('repo')}")
-        return 2
-    return 0
+        return "busy", f"a WetStack workspace from {info.get('repo')}"
+    return "ours", ""
+
+
+def pick_port(start: int, span: int = 20) -> int:
+    """Prints RUNNING <port> if this folder's workspace already answers on a port in the range,
+    else FREE <port> for the first free one, else NONE <start>. Notes go to stderr."""
+    states = [(port, *probe(port)) for port in range(start, min(start + span, 65536))]
+    for port, state, _ in states:
+        if state == "ours":
+            print(f"RUNNING {port}")
+            return 0
+    for port, state, _ in states:
+        if state == "free":
+            for busy_port, _, who in states:
+                if busy_port == port:
+                    break
+                print(f"Port {busy_port} is in use by {who}.", file=sys.stderr)
+            if port != start:
+                print(f"Using port {port} instead.", file=sys.stderr)
+            print(f"FREE {port}")
+            return 0
+    print(f"Ports {start}-{start + len(states) - 1} are all in use.", file=sys.stderr)
+    print(f"NONE {start}")
+    return 2
 
 
 def main(argv: list[str] | None = None) -> int:
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    ap.add_argument("--running", type=int, metavar="PORT", help="is this folder's workspace already served on PORT?")
+    ap.add_argument("--pick-port", type=int, metavar="START",
+                    help="find this folder's running workspace or a free port, from START upward")
     a = ap.parse_args(argv)
-    return running(a.running) if a.running is not None else check()
+    return pick_port(a.pick_port) if a.pick_port is not None else check()
 
 
 if __name__ == "__main__":

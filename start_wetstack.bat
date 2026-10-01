@@ -6,7 +6,8 @@ rem                  runs the digital-twin self-test after a fresh install (step
 rem                  the lab workspace and opens it in your browser.
 rem   From a prompt: start_wetstack.bat <command> runs python -m wetstack <command> in the venv,
 rem                  for example  start_wetstack.bat gate G0   or   start_wetstack.bat questions
-rem   Port:          set WETSTACK_PORT=8766 before running to use another port (default 8765).
+rem   Port:          8765, or the next free port if another program already has it. To start
+rem                  the search elsewhere: set WETSTACK_PORT=9100 before running.
 
 setlocal EnableExtensions
 cd /d "%~dp0"
@@ -42,17 +43,25 @@ if not exist "%VPY%" (
   if errorlevel 1 goto :failed
 )
 
-rem 2. Workspace already running from this folder? Just open it, and leave the venv it uses alone.
+rem 2. Port: if this folder's workspace already runs, just open it and leave the venv it uses alone.
+rem    Otherwise take WETSTACK_PORT (default 8765), or the next free port if another program has it.
+rem    check_env.py prints one line, RUNNING <port>, FREE <port> or NONE <port>; notes go to stderr.
 if not "%~1"=="" goto :deps
-"%VPY%" tools\check_env.py --running %WETSTACK_PORT%
-if errorlevel 2 (
-  echo Close that program, or pick another port from a prompt:  set WETSTACK_PORT=8766  then run start_wetstack.bat
-  goto :failed
+set "PORTSTATE="
+for /f "tokens=1,2" %%A in ('%VPY% tools\check_env.py --pick-port %WETSTACK_PORT%') do (
+  set "PORTSTATE=%%A"
+  set "WETSTACK_PORT=%%B"
 )
-if not errorlevel 1 (
-  echo The workspace is already running. Opening it in your browser.
+if "%PORTSTATE%"=="RUNNING" (
+  echo The workspace is already running on port %WETSTACK_PORT%. Opening it in your browser.
   start "" "http://127.0.0.1:%WETSTACK_PORT%/"
   goto :finish
+)
+if not "%PORTSTATE%"=="FREE" (
+  echo Close some of the programs using those ports, or start the search elsewhere from a prompt:
+  echo     set WETSTACK_PORT=9100
+  echo     start_wetstack.bat
+  goto :failed
 )
 
 :deps
