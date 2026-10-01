@@ -1,0 +1,21 @@
+id,name,qty,unit_cad_low,unit_cad_high,line_cad_low,line_cad_high,source,search_terms,first_needed,on_hand,notes
+E01,"ESP32 DevKit V1 (classic ESP32-WROOM-32, 38-pin)",2,6,12,12,24,AliExpress,ESP32 DevKit V1 WROOM-32 38pin,P3,no,"Must be classic ESP32: S2, S3 and C3 have no DAC. Second board is a spare."
+E02,ADS1115 16-bit ADC module,3,3,6,9,18,AliExpress,ADS1115 module 16 bit,P3,no,"One shunt, one diode I-V, one spare. Set the second to address 0x49 (ADDR to VDD)."
+E03,AS7341 11-channel spectral sensor module,2,14,38,28,76,AliExpress / Amazon (Adafruit),AS7341 spectral sensor module,P7,no,Adafruit version is easiest; Ali clones work with the same library.
+E04,"8-channel 5 V relay module, optocoupled, with JD-VCC jumper",1,7,14,7,14,AliExpress,8 channel relay module 5V optocoupler,P3,no,Low-level trigger type.
+E05,INA219 current/power module,2,2,6,4,12,AliExpress,INA219 module,P8,no,
+E06,DS18B20 waterproof temperature probe,2,2,5,4,10,AliExpress,DS18B20 waterproof probe,P3,no,
+E07,Logic-level MOSFET switch module (AO3400 or D4184),3,1,3,3,9,AliExpress,D4184 MOSFET module,P3,no,Not IRF520 modules: they do not switch fully at 3.3 V.
+E08,"Coin vibration motors 10 mm, 3 V (10-pack)",1,3,7,3,7,AliExpress,coin vibration motor 1027 3V,P3,no,Mixer.
+E09,MT3608 boost converter,3,1,3,3,9,AliExpress,MT3608 boost module,P8,no,
+E10,9 V 1 A DC adapter + barrel jack breakout,1,10,18,10,18,Amazon,9V 1A power adapter 5.5x2.1,P3,no,
+E11,Inline fuse holder + 250 mA fast fuses,1,5,10,5,10,Amazon,inline fuse holder 5x20 250mA,P3,no,Required.
+E12,"1% resistor kit (incl. 100, 470, 1k, 4.7k ohm)",1,8,14,8,14,AliExpress,1% metal film resistor kit,P3,yes,Verify on hand.
+E13,"Perfboard, screw terminals, headers",1,8,15,8,15,AliExpress,perfboard screw terminal kit,P3,no,
+E14,Breadboard and jumper wires,1,8,12,8,12,AliExpress,830 breadboard jumper kit,P3,yes,Verify on hand.
+E17,TCA9548A I2C multiplexer,1,2,4,2,4,AliExpress,TCA9548A module,Stretch,no,For several AS7341 later.
+O05,"5 mm LED assortment (white, 450, 590, 630 nm)",1,5,10,5,10,AliExpress,5mm LED assortment kit,P7,no,
+O06,"365 nm UV LEDs, 5 mm (20-pack)",1,4,9,4,9,AliExpress,365nm UV LED 5mm,Stretch,no,
+S01,"Solar panel 6 V, 6 W",1,18,35,18,35,Amazon / AliExpress,6V 6W solar panel,P8,no,
+S02,CN3791 MPPT single-cell solar charger module,1,3,7,3,7,AliExpress,CN3791 solar charger 6V,P8,no,Get the 6 V input version.
+S04,18650 holder with leads,2,1,3,2,6,AliExpress,18650 battery holder,P8,no,

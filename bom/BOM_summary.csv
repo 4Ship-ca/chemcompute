@@ -1,0 +1,15 @@
+group,est_cad_low,est_cad_high
+kind:consumable,134,262
+kind:electronics,130,293
+kind:equipment,333,691
+kind:material,267,545
+phase:P0,233,489
+phase:P1,226,455
+phase:P2,58,108
+phase:P3,108,228
+phase:P4,6,14
+phase:P6,98,197
+phase:P7,41,102
+phase:P8,64,137
+phase:Stretch,30,61
+TOTAL (items not on hand),864,1791

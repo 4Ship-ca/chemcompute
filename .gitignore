@@ -1,0 +1,8 @@
+.venv/
+__pycache__/
+*.egg-info/
+*.pyc
+proofs/*.sim.json
+docs/MVP_REPORT.sim.md
+data/raw/*-sim/
+.DS_Store
