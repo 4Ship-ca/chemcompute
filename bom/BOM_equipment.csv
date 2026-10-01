@@ -1,0 +1,20 @@
+id,name,qty,unit_cad_low,unit_cad_high,line_cad_low,line_cad_high,source,search_terms,first_needed,on_hand,notes
+E15,Multimeter with uA/mA ranges,1,25,50,25,50,Amazon,auto ranging multimeter microamp,P3,yes,Verify on hand.
+E16,Oscilloscope,1,0,0,0,0,On hand,,P6,yes,On hand.
+O01,"LED tracing light pad, A4, dimmable",1,22,38,22,38,Amazon,A4 LED light pad tracing dimmable,P1,no,Even backlight for the plate.
+O02,USB webcam with manual exposure (Logitech C920/C922 class),1,50,110,50,110,Amazon,Logitech C920,P1,no,Manual exposure and white balance are the requirement.
+O03,Overhead camera arm / desk mount,1,20,38,20,38,Amazon,overhead camera desk mount arm 1/4,P1,no,
+O07,UV-blocking safety glasses,1,10,22,10,22,Amazon,UV protection safety glasses 365nm,Stretch,no,
+O08,18% gray / white reference card,1,8,15,8,15,Amazon,18% gray card,P1,yes,Verify on hand.
+L01,Adjustable micropipette 100-1000 uL,1,25,60,25,60,AliExpress / Amazon,adjustable micropipette 100-1000ul,P0,no,
+L02,Adjustable micropipette 10-100 uL,1,25,60,25,60,AliExpress / Amazon,adjustable micropipette 10-100ul,P0,no,
+L05,Digital scale 0.001 g / 50 g with calibration weight,1,25,48,25,48,Amazon,0.001g digital scale 50g,P0,no,
+L06,Borosilicate beaker set 50-500 mL,1,18,32,18,32,Amazon,borosilicate beaker set,P0,no,
+L07,Graduated cylinders 10/50/100 mL,1,14,26,14,26,Amazon,graduated cylinder set,P0,no,
+L13,"pH meter pen (0.01, ATC) + calibration powders",1,20,42,20,42,Amazon,pH meter 0.01 ATC calibration,P0,no,
+L14,Digital caliper 150 mm,1,12,25,12,25,AliExpress,digital caliper 150mm,P0,no,
+L15,Small magnetic hotplate stirrer + stir bars,1,60,120,60,120,Amazon,magnetic stirrer hot plate,P1,no,Recommended. Microwave in short bursts is the fallback.
+L16,Silicone bench mat / spill tray,1,10,22,10,22,Amazon,silicone work mat large,P0,no,
+L18,Safety glasses (Z87.1),2,6,15,12,30,Amazon,safety glasses Z87,P0,no,
+L23,Fireproof LiPo charging bag,1,10,18,10,18,Amazon,lipo safe bag,P8,no,
+L26,3D printers (resin + filament),1,0,0,0,0,On hand,,P1,yes,On hand.

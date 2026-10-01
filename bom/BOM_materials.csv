@@ -1,0 +1,40 @@
+id,name,qty,unit_cad_low,unit_cad_high,line_cad_low,line_cad_high,source,search_terms,first_needed,on_hand,notes
+O04,"PMMA end-glow optical fiber, 1.0 mm, 10 m",1,8,16,8,16,AliExpress,PMMA optical fiber 1mm end glow,P7,no,
+O09,Black foam board (2 sheets) for the light shroud,1,6,14,6,14,Local / Amazon,black foam board,P1,no,
+L03,Pipette tips 1000 uL (500) + 200 uL (1000),1,10,22,10,22,AliExpress,pipette tips 1000ul 200ul,P0,no,
+L04,24-well flat-bottom clear plates with lids (10-pack),1,18,38,18,38,Amazon / AliExpress,24 well plate flat bottom,P1,no,"Polystyrene, clear, flat bottom."
+L08,Amber glass dropper bottles 30 mL (12),1,12,20,12,20,Amazon,amber glass dropper bottles 30ml,P1,no,
+L09,Storage bottles 250/500 mL (6),1,15,30,15,30,Amazon,glass media bottle 500ml,P0,no,
+L10,Wash bottles 250/500 mL,2,3,6,6,12,AliExpress,lab wash bottle 500ml,P0,no,
+L11,"Silicone tubing 2 mm ID x 3 mm OD, 5 m",1,6,12,6,12,AliExpress,silicone tube 2mm ID 3mm OD,P3,no,Salt bridges and diode tubes.
+L12,10 mL luer syringes (10) + blunt needles 14-18 G,1,10,18,10,18,Amazon,10ml syringe blunt tip needle,P3,no,
+L17,Nitrile gloves (100),1,10,18,10,18,Amazon / local,nitrile gloves,P0,no,
+L19,"Lab notebook, labels, waterproof markers",1,10,20,10,20,Local,,P0,no,
+L20,Transfer pipettes 3 mL (100),1,5,10,5,10,AliExpress,plastic transfer pipette 3ml,P0,no,
+L22,"Weighing boats, spatulas, small funnels",1,8,16,8,16,AliExpress,lab spatula weighing boat set,P0,no,
+L27,PETG filament / clear resin,1,0,0,0,0,On hand,,P1,yes,On hand. PETG for wet parts.
+X01,"Platinum wire 0.3 mm x 10 cm, 99.95%",1,15,45,15,45,AliExpress,platinum wire 0.3mm 99.95,P3,no,Verify with step P3.6.
+X02,"Graphite rods 2 mm (pure, art leads)",1,6,12,6,12,Amazon / AliExpress,2mm graphite lead refill pure,P3,no,Counter electrode; Pt fallback.
+X03,"Silver wire 999, 0.5 mm x 1 m",1,15,40,15,40,AliExpress,999 silver wire 0.5mm,P6,no,For Ag/AgCl.
+C01,"Distilled water, 4 L",4,2,4,8,16,Grocery,,P0,no,
+C02,Bromothymol blue powder (5-10 g),1,12,28,12,28,Amazon,bromothymol blue powder,P1,no,Backup: aquarium pH test solution (bromothymol blue).
+C03,Phenol red powder (5 g) or 0.02% solution,1,12,28,12,28,Amazon,phenol red indicator,P2,no,Pool test phenol red works if concentration is listed.
+C04,Universal indicator solution 100 mL,1,12,20,12,20,Amazon,universal indicator solution,P2,no,Backup for XOR.
+C05,Sodium sulfate anhydrous 500 g,1,12,22,12,22,Amazon,sodium sulfate anhydrous,P1,no,
+C06,"Sodium bisulfate (pool pH Down, 93%+) 1 kg",1,10,16,10,16,Amazon / pool store,sodium bisulfate pH down,P2,no,
+C07,Sodium carbonate (washing soda / pH Up) 1 kg,1,6,12,6,12,Grocery / Amazon,washing soda sodium carbonate,P1,no,
+C09,"Disodium phosphate, food grade, 250-500 g",1,12,22,12,22,Amazon,disodium phosphate food grade,P2,no,Note the hydrate form on the label.
+C22,"Borax (sodium tetraborate decahydrate), laundry grade OK",1,6,14,6,14,Grocery / Amazon,20 Mule Team Borax,P4,no,Neuron buffer. Gloves; keep from kids and pets.
+C10,"Monosodium phosphate, food grade, 250-500 g",1,12,22,12,22,Amazon,monosodium phosphate food grade,P2,no,
+C11,Agar-agar powder 100 g,1,10,16,10,16,Grocery / Amazon,agar agar powder,P3,no,Salt bridges.
+C12,"Agarose LE, molecular biology grade, 25 g",1,35,70,35,70,Amazon,agarose powder molecular biology,P6,no,Low charge; agar is not a substitute for the diode.
+C13,"Chitosan powder, medium MW, 100 g",1,20,38,20,38,Amazon,chitosan powder,P6,no,Cationic side of the diode.
+C14,"Sodium alginate, food grade, 100 g",1,10,18,10,18,Amazon,sodium alginate,P6,no,Anionic side.
+C15,Sodium polyacrylate (SAP) 250 g,1,10,16,10,16,Amazon,sodium polyacrylate powder,P6,no,Backup anionic side.
+C21,Non-iodized table salt,1,2,4,2,4,Grocery,,P6,no,Diode test wells only.
+C16,White vinegar 5%,1,3,5,3,5,Grocery,,P6,no,
+C17,"Isopropyl alcohol 99%, 500 mL",1,8,15,8,15,Pharmacy / Amazon,isopropyl alcohol 99%,P1,no,
+C18,"Household bleach, unscented",1,3,6,3,6,Grocery,,P6,no,Own labeled jar. Never near acids.
+C19,Calcium chloride food grade 250 g,1,8,14,8,14,Amazon,calcium chloride food grade,Stretch,no,
+C20,Photochromic pigment powder 10 g,1,6,12,6,12,AliExpress,photochromic pigment powder UV,Stretch,no,
+S03,"Protected 18650 Li-ion cell, reputable brand",2,12,25,24,50,Local battery shop / Amazon,protected 18650 battery,P8,no,Do not buy cells on AliExpress.

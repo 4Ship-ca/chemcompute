@@ -1,0 +1,335 @@
+{
+ "G0": {
+  "name": "Bench certified",
+  "phase": "P0",
+  "criteria": [
+   {
+    "key": "pip1000_err_pct",
+    "label": "1000 uL mean error",
+    "unit": "%",
+    "op": "<=",
+    "value": 3
+   },
+   {
+    "key": "pip1000_cv_pct",
+    "label": "1000 uL repeatability (CV)",
+    "unit": "%",
+    "op": "<=",
+    "value": 2
+   },
+   {
+    "key": "pip100_err_pct",
+    "label": "100 uL mean error",
+    "unit": "%",
+    "op": "<=",
+    "value": 3
+   },
+   {
+    "key": "pip100_cv_pct",
+    "label": "100 uL repeatability (CV)",
+    "unit": "%",
+    "op": "<=",
+    "value": 2
+   },
+   {
+    "key": "selftest_pass",
+    "label": "Digital twin self-test passes",
+    "unit": "",
+    "op": "==",
+    "value": 1
+   },
+   {
+    "key": "safety_signed",
+    "label": "Safety rules set up and signed",
+    "unit": "",
+    "op": "==",
+    "value": 1
+   }
+  ]
+ },
+ "G1": {
+  "name": "First light",
+  "phase": "P1",
+  "criteria": [
+   {
+    "key": "r2_dilution",
+    "label": "Dilution series linearity (R-squared)",
+    "unit": "",
+    "op": ">=",
+    "value": 0.98
+   },
+   {
+    "key": "read_cv_pct",
+    "label": "Repeat-read variation (CV)",
+    "unit": "%",
+    "op": "<=",
+    "value": 2
+   },
+   {
+    "key": "drift_pct_10min",
+    "label": "Drift over 10 minutes",
+    "unit": "%",
+    "op": "<=",
+    "value": 1
+   },
+   {
+    "key": "blank_abs",
+    "label": "Water blank absorbance (plastic + meniscus)",
+    "unit": "",
+    "op": "<=",
+    "value": 0.05
+   }
+  ]
+ },
+ "G2": {
+  "name": "First XOR",
+  "phase": "P2",
+  "criteria": [
+   {
+    "key": "xor_acc_dual",
+    "label": "XOR accuracy, dual indicator",
+    "unit": "",
+    "op": ">=",
+    "value": 0.95
+   },
+   {
+    "key": "xor_acc_raw_linear",
+    "label": "Raw-input linear baseline (must stay low)",
+    "unit": "",
+    "op": "<=",
+    "value": 0.75
+   },
+   {
+    "key": "xor_acc_single",
+    "label": "Single-indicator control (must stay low)",
+    "unit": "",
+    "op": "<=",
+    "value": 0.8
+   },
+   {
+    "key": "perm_p",
+    "label": "Permutation test p-value",
+    "unit": "",
+    "op": "<=",
+    "value": 0.01
+   },
+   {
+    "key": "n_wells",
+    "label": "Wells in the dual-indicator set",
+    "unit": "",
+    "op": ">=",
+    "value": 48
+   }
+  ]
+ },
+ "G3": {
+  "name": "First electric write",
+  "phase": "P3",
+  "criteria": [
+   {
+    "key": "charge_err_pct",
+    "label": "Charge delivery error",
+    "unit": "%",
+    "op": "<=",
+    "value": 2
+   },
+   {
+    "key": "faradaic_eff",
+    "label": "Faradaic efficiency",
+    "unit": "",
+    "op": ">=",
+    "value": 0.7
+   },
+   {
+    "key": "dose_cv_pct",
+    "label": "Dose-response repeatability (CV)",
+    "unit": "%",
+    "op": "<=",
+    "value": 5
+   }
+  ]
+ },
+ "G4": {
+  "name": "First chemical neuron",
+  "phase": "P4",
+  "criteria": [
+   {
+    "key": "q50_buffer_r2",
+    "label": "Q50 vs buffer linearity",
+    "unit": "",
+    "op": ">=",
+    "value": 0.95
+   },
+   {
+    "key": "width_ratio",
+    "label": "Threshold sharpness (width / Q50)",
+    "unit": "",
+    "op": "<=",
+    "value": 0.4
+   },
+   {
+    "key": "reset_delta_abs",
+    "label": "Baseline shift after reset",
+    "unit": "",
+    "op": "<=",
+    "value": 0.02
+   },
+   {
+    "key": "cycle_drift_pct",
+    "label": "Q50 drift over the run",
+    "unit": "%",
+    "op": "<=",
+    "value": 10
+   },
+   {
+    "key": "cycles",
+    "label": "Write/reset cycles completed",
+    "unit": "",
+    "op": ">=",
+    "value": 100
+   }
+  ]
+ },
+ "G5": {
+  "name": "First stack",
+  "phase": "P5",
+  "criteria": [
+   {
+    "key": "and_acc",
+    "label": "AND truth table accuracy",
+    "unit": "",
+    "op": ">=",
+    "value": 1.0
+   },
+   {
+    "key": "or_acc",
+    "label": "OR truth table accuracy",
+    "unit": "",
+    "op": ">=",
+    "value": 1.0
+   },
+   {
+    "key": "stack_xor_acc",
+    "label": "Stacked XOR accuracy",
+    "unit": "",
+    "op": ">=",
+    "value": 0.95
+   },
+   {
+    "key": "stack_trials",
+    "label": "Randomized trials",
+    "unit": "",
+    "op": ">=",
+    "value": 40
+   },
+   {
+    "key": "linear_relay",
+    "label": "Relay audited linear",
+    "unit": "",
+    "op": "==",
+    "value": 1
+   }
+  ]
+ },
+ "G6": {
+  "name": "First diode",
+  "phase": "P6",
+  "criteria": [
+   {
+    "key": "rr_median",
+    "label": "Median rectification ratio",
+    "unit": "",
+    "op": ">=",
+    "value": 2.0
+   },
+   {
+    "key": "rr_control",
+    "label": "Plain-gel control ratio",
+    "unit": "",
+    "op": "<=",
+    "value": 1.2
+   },
+   {
+    "key": "devices",
+    "label": "Devices measured",
+    "unit": "",
+    "op": ">=",
+    "value": 3
+   }
+  ]
+ },
+ "G7": {
+  "name": "Fiber eyes",
+  "phase": "P7",
+  "criteria": [
+   {
+    "key": "fiber_camera_r2",
+    "label": "Fiber vs camera agreement",
+    "unit": "",
+    "op": ">=",
+    "value": 0.95
+   },
+   {
+    "key": "fiber_blind_noise_pct",
+    "label": "Fiber noise with camera blinded",
+    "unit": "%",
+    "op": "<=",
+    "value": 3
+   }
+  ]
+ },
+ "G8": {
+  "name": "Sun-powered",
+  "phase": "P8",
+  "criteria": [
+   {
+    "key": "solar_hours",
+    "label": "Session length",
+    "unit": "h",
+    "op": ">=",
+    "value": 4
+   },
+   {
+    "key": "writes",
+    "label": "Writes completed",
+    "unit": "",
+    "op": ">=",
+    "value": 100
+   },
+   {
+    "key": "brownouts",
+    "label": "Brownouts",
+    "unit": "",
+    "op": "==",
+    "value": 0
+   },
+   {
+    "key": "j_per_write",
+    "label": "Energy per write",
+    "unit": "J",
+    "op": "record",
+    "value": 0
+   }
+  ]
+ },
+ "G9": {
+  "name": "MVP complete",
+  "phase": "P9",
+  "criteria": [
+   {
+    "key": "gates_passed",
+    "label": "Gates G0-G8 passed",
+    "unit": "",
+    "op": ">=",
+    "value": 9
+   },
+   {
+    "key": "demo_acc",
+    "label": "Integrated demo XOR accuracy",
+    "unit": "",
+    "op": ">=",
+    "value": 0.9
+   }
+  ]
+ }
+}
