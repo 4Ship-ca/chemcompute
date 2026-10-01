@@ -47,6 +47,9 @@ def write_gates(c):
         g = ph["gate"]
         gates[g["id"]] = {"name": g["name"], "phase": ph["id"], "criteria": g["criteria"]}
     (ROOT / "host" / "wetstack" / "gates.json").write_text(json.dumps(gates, indent=1))
+    steps = [{"id": ph["id"], "title": ph["title"], "gate": ph["gate"]["id"],
+              "steps": [{"id": s["id"], "title": s["title"]} for s in ph["steps"]]} for ph in c.PHASES]
+    (ROOT / "host" / "wetstack" / "steps.json").write_text(json.dumps(steps, indent=1))
 
 
 def write_bom(c):

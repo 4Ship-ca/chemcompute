@@ -43,10 +43,24 @@ MVP (WetStack-0), the electro-chemical pH neuron:
 | `firmware/wetstack_ctl/wetstack_ctl.ino` | ESP32 controller: text commands in, one JSON line out (PING, RELAYTEST, DOSE, MIX, SPEC, TEMP, POWER, IV, SINE, SET, SAFE, HELP). |
 | `hardware/scad/`, `hardware/stl/` | Parametric OpenSCAD and rendered STLs: plate frame, plate lid (all-well windows + electrode/bridge holes), lid with a fiber boss, LED-fiber coupler, AS7341 cap. |
 | `web/template.html` | Lab workspace page. The published copy lives at https://claude.ai/artifact/Spr4Hz1cUCdgWMjxmdhvYG and can only be republished from a claude.ai chat, not from Claude Code. The built `web/wetstack_lab.html` works offline (saves to that browser only). |
+| `host/wetstack/progress_store.py`, `server.py` | Progress file engine (atomic writes, backups, lock, merge, PROGRESS.md) and the local workspace server. |
 | `proofs/` | `<gate>.json` from real runs, `<gate>.sim.json` from the twin (sim files gitignored). |
 | `data/raw/` | Raw session data. Immutable once written. |
 | `config/lab.json` | Created on first run: serial port, camera index, electrode wells, fitted Q50 line, stack gains. Sim keys are suffixed `_sim`. |
 | `PROGRESS.md` | Exported from the workspace Sync tab after each session; checkboxes are the completion markers. |
+
+## Progress, photos and questions (how JL and Claude Code talk)
+
+- JL runs `python -m wetstack serve --open`. The page saves to **`progress/progress.json`** (master record: step status, notes, gate values, parts, log entries, questions), regenerates `PROGRESS.md`, and stores photos in **`photos/<step>/`**.
+- **Never edit `progress/progress.json` by hand or with a text editor tool.** Use the commands below. They take the file lock, bump the revision, keep a backup, and let an open browser page merge the change in within 15 s.
+- When JL says **"answer my lab questions"**:
+  1. `python -m wetstack questions` lists open questions with the step, its status, his notes and photo paths.
+  2. Look at any listed photos (they're ordinary JPEGs in the repo).
+  3. Write the answer to a temporary file, then `python -m wetstack answer <id> --file <tmpfile>`; delete the temp file.
+  Answer as the lab manager: specific next action, expected reading, how to tell pass from fail, safety first.
+- Progress tools: `python -m wetstack progress status`; `progress export <file>`; `progress import <file>` (merges, nothing lost); `progress restore progress/backups/<file>` (replaces; previous version backed up).
+- Merge rule (Python `progress_store.merge` and the page's `mergeDocs` must stay identical): per step, gate, part and note, the newer timestamp `t` wins; log entries are unioned by `id`; an answer is never dropped.
+- After changing `progress_store.py`, `server.py` or the page's storage code, run `python tests/test_progress.py` (must pass) and, if Playwright is installed, `python tests/e2e_workspace.py` (20 checks).
 
 ## Working rules for Claude Code
 
@@ -78,7 +92,7 @@ Not verified yet:
 
 Phase P0 (bench, safety, calibration) has not started. Next actions:
 1. Push this repo (the GitHub repo had a starter commit, so the first push needed `--force`).
-2. P0.3: `python -m venv .venv`, activate, `pip install -e .`, `python -m wetstack selftest`.
+2. P0.3: `python -m venv .venv`, activate, `pip install -e .`, `python -m wetstack selftest`, then `python -m wetstack serve --open` for every session.
 3. Order the Phase 0-1 items (micropipettes 100-1000 and 10-100 uL, 0.001 g scale, 24-well plates, A4 light pad, webcam with manual exposure, bromothymol blue, sodium carbonate, sodium sulfate, isopropyl alcohol). Order the AliExpress electronics for P3 at the same time because shipping is slow.
 4. P0.4-P0.7: scale check, pipette calibration (`python -m wetstack g0-pipette --volume 1000`, then `--volume 100`), safety sign-off (`python -m wetstack sign-safety`), then `python -m wetstack gate G0`.
 

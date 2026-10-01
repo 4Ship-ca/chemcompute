@@ -21,4 +21,4 @@ package-dir = {"" = "host"}
 packages = ["wetstack"]
 
 [tool.setuptools.package-data]
-wetstack = ["gates.json"]
+wetstack = ["gates.json", "steps.json"]

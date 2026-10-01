@@ -58,6 +58,8 @@ nav.tabs button:hover:not([aria-current="page"]){background:var(--wash);color:va
 .syncdot{font-size:.78rem;color:var(--muted);display:flex;align-items:center;gap:6px;margin-top:2px}
 .syncdot i{width:8px;height:8px;border-radius:50%;background:var(--muted);display:inline-block}
 .syncdot.on i{background:var(--mid)}
+.syncdot.warn{color:var(--ink);font-weight:700}
+.syncdot.warn i{background:var(--acid)}
 
 /* layout */
 .shell{display:grid;grid-template-columns:240px minmax(0,1fr);gap:40px;max-width:1180px;margin:0 auto;padding:28px 24px 72px}
@@ -199,30 +201,25 @@ dl.pairs dd{margin:.15rem 0 0;max-width:70ch}
 <div class="toast" id="toast" role="status" aria-live="polite"></div>
 <script>
 const DATA = /*__DATA__*/null;
-const LS = {state:"wetstack0.state", notes:"wetstack0.notes", entries:"wetstack0.entries"};
-const TABS = [["build","Build"],["plan","Plan"],["parts","Parts"],["methods","Methods"],["ask","Ask"],["log","Log"],["sync","Sync"]];
+const LS_DOC = "wetstack0.v2";
+const LS_V1 = {state: "wetstack0.state", notes: "wetstack0.notes", entries: "wetstack0.entries"};
+const TABS = [["build","Build"],["plan","Plan"],["parts","Parts"],["methods","Methods"],["ask","Ask"],["log","Log"],["sync","Save and sync"]];
 const STEP_STATES = [["todo","To do"],["doing","Doing"],["done","Done"],["blocked","Blocked"]];
 const GROUPS = {all:"All", electronics:"Electronics", equipment:"Equipment", materials:"Materials and consumables"};
+const ID_RE = /^[A-Za-z0-9_.:\-]{1,64}$/;
 
-let state = readLS(LS.state) || {v:1, updated:0, steps:{}, gates:{}, bom:{}, meta:{phase:"P0"}};
-let notes = readLS(LS.notes) || {updated:0, notes:{}};
-let entries = readLS(LS.entries) || [];
-const ui = {tab:"build", open:new Set(), bomGroup:"all", bomPhase:"all", askStep:"general", pendingRender:false};
-const cap = {db:null, user:null, assets:null, sample:null, downloads:null, imagesOk:false};
-let uid = null, progressRef = null, notesRef = null, entriesCol = null;
-let askCtl = null, askBusy = false, askLive = "";
-
+/* ---------- small helpers ---------- */
 function readLS(k){ try{ const v = localStorage.getItem(k); return v ? JSON.parse(v) : null; }catch(e){ return null; } }
-function writeLS(k, v){ try{ localStorage.setItem(k, JSON.stringify(v)); }catch(e){} }
-
+function writeLS(k, v){ try{ localStorage.setItem(k, JSON.stringify(v)); return true; }catch(e){ return false; } }
+function num(v, d = 0){ return typeof v === "number" && isFinite(v) ? v : d; }
+function newId(){ return Date.now().toString(36) + "-" + Math.random().toString(36).slice(2, 8); }
+function clone(x){ return JSON.parse(JSON.stringify(x)); }
 function el(tag, props, ...kids){
   const n = document.createElement(tag);
   if (props) for (const [k, v] of Object.entries(props)){
     if (v == null || v === false) continue;
     if (k === "class") n.className = v;
-    else if (k === "text") n.textContent = v;
     else if (k.startsWith("on")) n.addEventListener(k.slice(2), v);
-    else if (k === "style") n.setAttribute("style", v);
     else n.setAttribute(k, v === true ? "" : v);
   }
   for (const k of kids.flat()){
@@ -231,15 +228,208 @@ function el(tag, props, ...kids){
   }
   return n;
 }
-function toast(msg){ const t = document.getElementById("toast"); t.textContent = msg; t.classList.add("show"); clearTimeout(toast.h); toast.h = setTimeout(() => t.classList.remove("show"), 2200); }
+function toast(msg){ const t = document.getElementById("toast"); t.textContent = msg; t.classList.add("show"); clearTimeout(toast.h); toast.h = setTimeout(() => t.classList.remove("show"), 2600); }
 async function copy(text){
   try{ await navigator.clipboard.writeText(text); toast("Copied"); }
   catch(e){ const ta = el("textarea"); ta.value = text; document.body.append(ta); ta.select(); try{ document.execCommand("copy"); toast("Copied"); }catch(_){ toast("Select and copy manually"); } ta.remove(); }
 }
 
+/* ---------- the progress document (same rules as host/wetstack/progress_store.py) ---------- */
+function emptyDoc(){ return {schema:"wetstack-progress", version:2, rev:0, updated:0, state:{steps:{}, gates:{}, bom:{}, meta:{phase:"P0", t:0}}, notes:{}, entries:[]}; }
+function migrate(raw){
+  const d = emptyDoc();
+  if (!raw || typeof raw !== "object") return d;
+  const src = raw.state && typeof raw.state === "object" ? raw.state : (raw.steps ? raw : {});
+  let notesSrc = raw.notes || {};
+  if (notesSrc && typeof notesSrc.notes === "object"){ const t = num(notesSrc.updated); const o = {}; for (const [k, v] of Object.entries(notesSrc.notes)) if (typeof v === "string") o[k] = {text: v, t}; notesSrc = o; }
+  d.rev = Math.trunc(num(raw.rev)); d.updated = Math.trunc(num(raw.updated, num(src.updated)));
+  for (const key of ["steps", "gates", "bom"]){
+    const part = src[key] || {};
+    for (const [id, item] of Object.entries(part)) if (ID_RE.test(id) && item && typeof item === "object"){ const c = clone(item); c.t = Math.trunc(num(item.t, d.updated)); d.state[key][id] = c; }
+  }
+  const meta = src.meta || {};
+  d.state.meta = {phase: typeof meta.phase === "string" ? meta.phase : "P0", t: Math.trunc(num(meta.t, d.updated))};
+  for (const [k, v] of Object.entries(notesSrc || {})){
+    if (!ID_RE.test(k)) continue;
+    if (typeof v === "string") d.notes[k] = {text: v, t: d.updated};
+    else if (v && typeof v.text === "string") d.notes[k] = {text: v.text, t: Math.trunc(num(v.t, d.updated))};
+  }
+  (Array.isArray(raw.entries) ? raw.entries.slice(-5000) : []).forEach((e, i) => {
+    if (!e || typeof e !== "object") return;
+    const c = clone(e);
+    c.id = typeof e.id === "string" && ID_RE.test(e.id) ? e.id : `legacy-${num(e.t)}-${i}`;
+    c.t = Math.trunc(num(e.t));
+    if (!["note", "photo", "qa"].includes(c.kind)) c.kind = "note";
+    d.entries.push(c);
+  });
+  return d;
+}
+function newer(a, b){ if (!a) return b; if (!b) return a; return num(b.t) > num(a.t) ? b : a; }
+function mergeDocs(x, y){
+  const a = migrate(x), b = migrate(y), out = emptyDoc();
+  for (const key of ["steps", "gates", "bom"]){
+    for (const k of new Set([...Object.keys(a.state[key]), ...Object.keys(b.state[key])])) out.state[key][k] = clone(newer(a.state[key][k], b.state[key][k]));
+  }
+  out.state.meta = clone(newer(a.state.meta, b.state.meta));
+  for (const k of new Set([...Object.keys(a.notes), ...Object.keys(b.notes)])) out.notes[k] = clone(newer(a.notes[k], b.notes[k]));
+  const byId = new Map();
+  for (const e of [...a.entries, ...b.entries]){
+    const cur = byId.get(e.id);
+    if (!cur){ byId.set(e.id, clone(e)); continue; }
+    const w = num(e.edited, e.t) >= num(cur.edited, cur.t) ? e : cur;
+    const m = clone(w);
+    if (!m.a && (cur.a || e.a)){ const s = cur.a ? cur : e; m.a = s.a; m.a_t = s.a_t; }
+    byId.set(e.id, m);
+  }
+  out.entries = [...byId.values()].sort((p, q) => num(p.t) - num(q.t)).slice(-5000);
+  out.rev = Math.max(a.rev, b.rev); out.updated = Math.max(a.updated, b.updated);
+  return out;
+}
+
+let doc, local;
+(function bootDoc(){
+  const saved = readLS(LS_DOC);
+  if (saved && saved.doc){ doc = migrate(saved.doc); local = {dirty: !!saved.dirty, baseRev: num(saved.baseRev), seq: 0}; return; }
+  const s1 = readLS(LS_V1.state), n1 = readLS(LS_V1.notes), e1 = readLS(LS_V1.entries);
+  doc = (s1 || n1 || e1) ? migrate({state: s1 || {}, notes: n1 || {}, entries: e1 || [], updated: num(s1 && s1.updated)}) : emptyDoc();
+  local = {dirty: !!(s1 || n1 || e1), baseRev: 0, seq: 0};
+})();
+let state = doc.state, entries = doc.entries;
+function adopt(d){ doc = d; state = doc.state; entries = doc.entries; }
+const store = {mode: "browser", status: "idle", rev: doc.rev, repo: "", lastSaved: null, lsOk: true, retry: 1000};
+function persistLocal(){ store.lsOk = writeLS(LS_DOC, {doc, dirty: local.dirty, baseRev: local.baseRev, savedAt: Date.now()}); }
+function noteGet(id){ const n = doc.notes[id]; return n ? n.text : ""; }
+
+const ui = {tab: "build", open: new Set(), bomGroup: "all", bomPhase: "all", askStep: "general", pendingRender: false};
+const cap = {db: null, user: null, assets: null, sample: null, downloads: null, imagesOk: false};
+let progressRef = null, notesRef = null, entriesCol = null;
+let askCtl = null, askBusy = false, askLive = "";
+
+/* ---------- saving ---------- */
+function touch(kind){
+  doc.updated = Date.now(); local.dirty = true; local.seq++;
+  persistLocal();
+  if (store.mode === "server") scheduleServerSave();
+  else if (store.mode === "workspace"){ if (kind === "notes") scheduleNotesPush(); else if (kind !== "entries") schedulePush(); }
+  setStatus();
+}
+function setStatus(){
+  const dot = document.getElementById("syncdot"); if (!dot) return;
+  const span = dot.querySelector("span");
+  dot.className = "syncdot";
+  if (!store.lsOk){ dot.classList.add("warn"); span.textContent = "Browser storage is full or blocked: export now"; return; }
+  if (store.mode === "server"){
+    if (store.status === "saving"){ span.textContent = "Saving to progress.json"; return; }
+    if (store.status === "offline"){ dot.classList.add("warn"); span.textContent = "Server not reachable: changes kept in this browser, retrying"; return; }
+    dot.classList.add("on"); span.textContent = `Saved to progress.json, revision ${store.rev}`; return;
+  }
+  if (store.mode === "workspace"){ dot.classList.add("on"); span.textContent = "Saved to your claude.ai workspace"; return; }
+  span.textContent = local.dirty ? "Saved in this browser only: export to keep a file" : "Saved in this browser only";
+}
+
+// Local server mode: progress/progress.json in the repo is the master copy.
+let saveTimer = null, saving = false, saveAgain = false;
+function scheduleServerSave(delay = 700){ clearTimeout(saveTimer); saveTimer = setTimeout(serverSave, delay); }
+async function serverSave(){
+  if (saving){ saveAgain = true; return; }
+  saving = true; store.status = "saving"; setStatus();
+  const sentSeq = local.seq;
+  try{
+    const r = await fetch("/api/progress", {method: "PUT", headers: {"Content-Type": "application/json", "X-WetStack": "1"},
+      body: JSON.stringify({base_rev: local.baseRev, doc})});
+    const j = await r.json();
+    if (!r.ok) throw Object.assign(new Error(j.error || ("HTTP " + r.status)), {fatal: r.status === 400 || r.status === 403});
+    if (j.merged && j.doc){
+      const mine = local.seq !== sentSeq ? clone(doc) : null;
+      adopt(mine ? mergeDocs(j.doc, mine) : migrate(j.doc));
+      safeRender();
+    }
+    doc.rev = j.rev; local.baseRev = j.rev; store.rev = j.rev; store.lastSaved = Date.now();
+    local.dirty = local.seq !== sentSeq; store.status = "saved"; store.retry = 1000;
+    persistLocal();
+    if (local.dirty) scheduleServerSave(300);
+  }catch(e){
+    store.status = "offline";
+    if (e.fatal){ toast("Save refused: " + e.message); }
+    else { setTimeout(serverSave, store.retry); store.retry = Math.min(30000, store.retry * 2); }
+  }
+  saving = false; setStatus();
+  if (saveAgain){ saveAgain = false; serverSave(); }
+}
+async function serverPull(){
+  if (saving || local.dirty || document.hidden) return;
+  try{
+    const r = await fetch("/api/progress?rev=" + local.baseRev, {cache: "no-store"});
+    const j = await r.json();
+    if (j.unchanged) { if (store.status === "offline"){ store.status = "saved"; setStatus(); } return; }
+    if (local.dirty) return;
+    adopt(migrate(j.doc)); local.baseRev = j.rev; store.rev = j.rev; store.status = "saved";
+    persistLocal(); setStatus(); safeRender();
+  }catch(e){ store.status = "offline"; setStatus(); }
+}
+async function serverConnect(){
+  const r = await fetch("/api/progress", {cache: "no-store"});
+  const j = await r.json();
+  if (local.dirty){ await serverSave(); }
+  else { adopt(migrate(j.doc)); local.baseRev = j.rev; store.rev = j.rev; persistLocal(); }
+  store.status = "saved";
+  setInterval(serverPull, 15000);
+  document.addEventListener("visibilitychange", () => { if (!document.hidden) serverPull(); });
+}
+
+// claude.ai workspace mode
+let pushTimer = null, pushing = false, pushAgain = false, notesTimer = null;
+function schedulePush(){ if (!progressRef) return; clearTimeout(pushTimer); pushTimer = setTimeout(pushProgress, 900); }
+async function pushProgress(){
+  if (!progressRef) return;
+  if (pushing){ pushAgain = true; return; }
+  pushing = true;
+  try{ await progressRef.set({schema: "wetstack-progress", version: 2, state: clone(doc.state), updated: doc.updated}); local.dirty = false; persistLocal(); }
+  catch(e){ if (e && e.code === "quota_exceeded") toast("Workspace storage is full; export a backup"); }
+  pushing = false; setStatus();
+  if (pushAgain){ pushAgain = false; pushProgress(); }
+}
+function scheduleNotesPush(){ if (!notesRef) return; clearTimeout(notesTimer); notesTimer = setTimeout(async () => {
+  try{ await notesRef.set({version: 2, notes: clone(doc.notes), updated: doc.updated}); }catch(e){} }, 1200); }
+
+async function addEntry(entry){
+  entry.id = entry.id || newId(); entry.t = Date.now();
+  if (store.mode === "workspace" && entriesCol){
+    try{ await entriesCol.doc(entry.id).set(entry); return; }
+    catch(e){ toast("Could not save to the workspace; kept in this browser"); }
+  }
+  doc.entries.push(entry); entries = doc.entries;
+  touch("entries"); safeRender();
+}
+function imgSrc(e){
+  if (e.asset) return "/_blob/" + e.asset;
+  if (e.file) return store.mode === "server" ? "/" + e.file : "../" + e.file;
+  return null;
+}
+async function uploadPhoto(file, stepId){
+  if (store.mode === "server"){
+    const r = await fetch(`/api/photo?step=${encodeURIComponent(stepId || "log")}&name=${encodeURIComponent(file.name)}`,
+      {method: "POST", headers: {"X-WetStack": "1", "Content-Type": file.type || "application/octet-stream"}, body: file});
+    const j = await r.json();
+    if (!r.ok) throw new Error(j.error || "upload failed");
+    return {file: j.file};
+  }
+  if (cap.assets){ const res = await cap.assets.upload(file); return {asset: res.id}; }
+  throw new Error("Photos need the local server (python -m wetstack serve) or the claude.ai workspace");
+}
+function canPhoto(){ return store.mode === "server" || !!cap.assets; }
+
+window.addEventListener("beforeunload", e => { if (store.mode === "server" && (local.dirty || saving)){ e.preventDefault(); e.returnValue = ""; } });
+window.addEventListener("pagehide", () => {
+  persistLocal();
+  if (store.mode === "server" && local.dirty){
+    try{ fetch("/api/progress", {method: "PUT", keepalive: true, headers: {"Content-Type": "application/json", "X-WetStack": "1"}, body: JSON.stringify({base_rev: local.baseRev, doc})}); }catch(e){}
+  }
+});
+
 /* ---------- derived data ---------- */
 const PH = DATA.phases;
-const ALLSTEPS = PH.flatMap(p => p.steps.map(s => ({...s, phase:p.id})));
+const ALLSTEPS = PH.flatMap(p => p.steps.map(s => ({...s, phase: p.id})));
 const STEP = Object.fromEntries(ALLSTEPS.map(s => [s.id, s]));
 function stepState(id){ return (state.steps[id] && state.steps[id].s) || "todo"; }
 function gateValues(gid){ return (state.gates[gid] && state.gates[gid].values) || {}; }
@@ -266,53 +456,26 @@ function progress(){ const done = ALLSTEPS.filter(s => stepState(s.id) === "done
 function bomStatus(item){ const b = state.bom[item.id]; return b && b.st ? b.st : (item.onhand ? "have" : "need"); }
 function groupOf(kind){ return kind === "material" || kind === "consumable" ? "materials" : kind; }
 
-/* ---------- persistence ---------- */
-let pushTimer = null, pushing = false, pushAgain = false;
-function touch(){ state.updated = Date.now(); writeLS(LS.state, state); schedulePush(); }
-function schedulePush(){ if (!progressRef) return; clearTimeout(pushTimer); pushTimer = setTimeout(pushProgress, 900); }
-async function pushProgress(){
-  if (!progressRef) return;
-  if (pushing){ pushAgain = true; return; }
-  pushing = true;
-  try{ await progressRef.set(JSON.parse(JSON.stringify(state))); }
-  catch(e){ if (e && e.code === "quota_exceeded") toast("Workspace storage is full; export a backup from Sync"); }
-  pushing = false;
-  if (pushAgain){ pushAgain = false; pushProgress(); }
-}
-let notesTimer = null, notesPushing = false;
-function touchNotes(){ notes.updated = Date.now(); writeLS(LS.notes, notes); if (!notesRef) return; clearTimeout(notesTimer); notesTimer = setTimeout(async () => {
-  if (notesPushing) return; notesPushing = true;
-  try{ await notesRef.set(JSON.parse(JSON.stringify(notes))); }catch(e){}
-  notesPushing = false; }, 1200); }
-async function addEntry(entry){
-  entry.t = Date.now();
-  if (entriesCol){
-    try{ await entriesCol.add(entry); return; }
-    catch(e){ toast(e && e.code === "quota_exceeded" ? "Journal is full; export and prune" : "Could not save to the workspace; kept in this browser"); }
-  }
-  entries.unshift(entry); writeLS(LS.entries, entries); safeRender();
-}
-
 /* ---------- rendering ---------- */
 function safeRender(){
   const a = document.activeElement;
   if (a && (a.tagName === "TEXTAREA" || (a.tagName === "INPUT" && a.type !== "file")) && document.getElementById("main").contains(a)){
-    if (!ui.pendingRender){ ui.pendingRender = true; a.addEventListener("blur", () => { ui.pendingRender = false; render(); }, {once:true}); }
+    if (!ui.pendingRender){ ui.pendingRender = true; a.addEventListener("blur", () => { ui.pendingRender = false; render(); }, {once: true}); }
     return;
   }
   render();
 }
 function render(){
   document.getElementById("tagline").textContent = DATA.project.tagline;
-  renderTabs(); renderRail();
+  renderTabs(); renderRail(); setStatus();
   const m = document.getElementById("main"); m.replaceChildren();
-  ({build:viewBuild, plan:viewPlan, parts:viewParts, methods:viewMethods, ask:viewAsk, log:viewLog, sync:viewSync})[ui.tab](m);
+  ({build: viewBuild, plan: viewPlan, parts: viewParts, methods: viewMethods, ask: viewAsk, log: viewLog, sync: viewSync})[ui.tab](m);
 }
 function renderTabs(){
   const nav = document.getElementById("tabs"); nav.replaceChildren();
   for (const [id, label] of TABS) nav.append(el("button", {"aria-current": ui.tab === id ? "page" : null, onclick: () => { ui.tab = id; render(); window.scrollTo(0, 0); }}, label));
 }
-function goPhase(id){ state.meta.phase = id; writeLS(LS.state, state); ui.tab = "build"; render(); window.scrollTo(0, 0); }
+function goPhase(id){ state.meta = {phase: id, t: Date.now()}; touch("meta"); ui.tab = "build"; render(); window.scrollTo(0, 0); }
 function renderRail(){
   const r = document.getElementById("rail"); r.replaceChildren();
   const pr = progress(); const p = Math.max(pr.p, 0.001);
@@ -320,10 +483,8 @@ function renderRail(){
   const tube = el("div", {class: "burette", "aria-hidden": "true"}, el("div", {class: "fill", style: `height:${(pr.p * 100).toFixed(1)}%;--p:${p}`}));
   PH.forEach((ph, i) => tube.append(el("div", {class: "tick", style: `top:${((i + 0.5) / PH.length * 100).toFixed(2)}%`})));
   const list = el("ol", {class: "phases"});
-  for (const ph of PH){
-    list.append(el("li", null, el("button", {"aria-current": ph.id === cur ? "true" : null, onclick: () => goPhase(ph.id), title: ph.title},
-      el("span", {class: "mark " + phaseStatus(ph)}), el("span", {class: "pid"}, ph.id), el("span", {class: "ptitle"}, ph.title))));
-  }
+  for (const ph of PH) list.append(el("li", null, el("button", {"aria-current": ph.id === cur ? "true" : null, onclick: () => goPhase(ph.id), title: ph.title},
+    el("span", {class: "mark " + phaseStatus(ph)}), el("span", {class: "pid"}, ph.id), el("span", {class: "ptitle"}, ph.title))));
   r.append(el("div", {class: "railgrid"}, tube, list));
   const chips = el("div", {class: "chips"});
   for (const ph of PH) chips.append(el("button", {"aria-current": ph.id === cur ? "true" : null, onclick: () => goPhase(ph.id)}, el("span", {class: "mark " + phaseStatus(ph)}), ph.id));
@@ -334,24 +495,21 @@ function renderRail(){
 
 function cmdLine(cmd){ return el("div", {class: "cmdline"}, el("code", null, cmd), el("button", {onclick: () => copy(cmd)}, "Copy")); }
 function photoThumbs(stepId){
-  const ph = entries.filter(e => e.kind === "photo" && e.step === stepId && e.asset);
+  const ph = entries.filter(e => e.kind === "photo" && e.step === stepId && imgSrc(e));
   if (!ph.length) return null;
-  return el("div", {class: "photos"}, ph.map(e => el("img", {src: "/_blob/" + e.asset, alt: e.text || "Photo for " + stepId, loading: "lazy"})));
+  return el("div", {class: "photos"}, ph.map(e => el("img", {src: imgSrc(e), alt: e.text || "Photo for " + stepId, loading: "lazy"})));
 }
 function uploadButton(stepId, label){
-  if (!cap.assets) return el("span", {class: "cam"}, "Photo upload works in the published workspace.");
+  if (!canPhoto()) return el("span", {class: "cam"}, "Photos save when the page is opened with python -m wetstack serve.");
   const input = el("input", {type: "file", accept: "image/*", style: "display:none", onchange: async ev => {
     const f = ev.target.files[0]; if (!f) return;
-    toast("Uploading photo");
-    try{
-      const res = await cap.assets.upload(f);
-      await addEntry({kind: "photo", step: stepId, asset: res.id, text: f.name});
-      toast("Photo saved");
-    }catch(e){ toast(e && e.code === "too_large" ? "Photo over 20 MB; resize it" : "Upload failed: " + ((e && e.code) || "unknown")); }
+    toast("Saving photo");
+    try{ const where = await uploadPhoto(f, stepId); await addEntry({kind: "photo", step: stepId, text: f.name, ...where}); toast("Photo saved"); }
+    catch(e){ toast(e.message || "Photo upload failed"); }
   }});
   return el("label", {class: "btn quiet", style: "display:inline-block"}, label || "Add photo", input);
 }
-function setStep(id, v){ state.steps[id] = {s: v, t: Date.now()}; touch(); render(); }
+function setStep(id, v){ state.steps[id] = {s: v, t: Date.now()}; touch("steps"); render(); }
 function askAbout(stepId){ ui.askStep = stepId; ui.tab = "ask"; render(); window.scrollTo(0, 0); }
 
 function viewBuild(m){
@@ -379,11 +537,13 @@ function viewBuild(m){
     const seg = el("div", {class: "seg", role: "group", "aria-label": "Status of " + s.id});
     for (const [v, label] of STEP_STATES) seg.append(el("button", {"data-v": v, "aria-pressed": st === v ? "true" : "false", onclick: () => setStep(s.id, v)}, label));
     const note = el("textarea", {placeholder: "Readings, observations, what surprised you", "aria-label": "Notes for " + s.id});
-    note.value = notes.notes[s.id] || "";
-    note.addEventListener("input", () => { notes.notes[s.id] = note.value; touchNotes(); });
-    const det = el("details", {class: "more", open: ui.open.has(s.id) ? true : null,
-      ontoggle: ev => { ev.target.open ? ui.open.add(s.id) : ui.open.delete(s.id); }},
-      el("summary", null, "Notes and photos" + (s.photo ? " (photo requested)" : "")), note, photoThumbs(s.id),
+    note.value = noteGet(s.id);
+    let nt = null;
+    note.addEventListener("input", () => { clearTimeout(nt); nt = setTimeout(() => { doc.notes[s.id] = {text: note.value, t: Date.now()}; touch("notes"); }, 400); });
+    note.addEventListener("blur", () => { if (note.value !== noteGet(s.id)){ clearTimeout(nt); doc.notes[s.id] = {text: note.value, t: Date.now()}; touch("notes"); } });
+    const nPhotos = entries.filter(e => e.kind === "photo" && e.step === s.id).length;
+    const det = el("details", {class: "more", open: ui.open.has(s.id) ? true : null, ontoggle: ev => { ev.target.open ? ui.open.add(s.id) : ui.open.delete(s.id); }},
+      el("summary", null, "Notes and photos" + (nPhotos ? ` (${nPhotos})` : s.photo ? " (photo requested)" : "")), note, photoThumbs(s.id),
       el("div", {class: "tools"}, uploadButton(s.id), el("button", {class: "btn quiet", onclick: () => askAbout(s.id)}, "Ask about this step")));
     ol.append(el("li", {id: "s-" + s.id, class: st},
       el("div", {class: "srow"}, el("div", {class: "stitle"}, el("span", {class: "sid"}, s.id), el("span", {class: "t"}, s.title)), seg),
@@ -396,8 +556,7 @@ function viewBuild(m){
 function viewGate(ph){
   const g = ph.gate, ev = gateEval(ph);
   const box = el("section", {class: "gate", "aria-label": "Gate " + g.id});
-  box.append(el("div", {class: "gatehead" + (ev.pass ? " pass" : "")}, el("h3", null, `Gate ${g.id}: ${g.name}`),
-    el("span", null, ev.pass ? "Passed" : `${ev.met} of ${ev.rows.length} criteria met`)));
+  box.append(el("div", {class: "gatehead" + (ev.pass ? " pass" : "")}, el("h3", null, `Gate ${g.id}: ${g.name}`), el("span", null, ev.pass ? "Passed" : `${ev.met} of ${ev.rows.length} criteria met`)));
   const tb = el("tbody");
   for (const r of ev.rows){
     const inp = el("input", {type: "number", step: "any", "aria-label": r.label});
@@ -405,7 +564,7 @@ function viewGate(ph){
     inp.addEventListener("change", () => {
       const vals = {...gateValues(g.id)};
       if (inp.value === "") delete vals[r.key]; else vals[r.key] = Number(inp.value);
-      state.gates[g.id] = {values: vals, t: Date.now()}; touch(); render();
+      state.gates[g.id] = {...(state.gates[g.id] || {}), values: vals, t: Date.now()}; touch("gates"); render();
     });
     const target = r.op === "record" ? "record" : `${r.op} ${r.value}${r.unit ? " " + r.unit : ""}`;
     tb.append(el("tr", null, el("td", null, r.label), el("td", {class: "num"}, target), el("td", null, inp),
@@ -418,7 +577,7 @@ function viewGate(ph){
       if (proof.gate !== g.id || !proof.metrics) throw new Error("This proof file is for " + (proof.gate || "another gate"));
       const vals = {...gateValues(g.id)};
       for (const c of g.criteria) if (typeof proof.metrics[c.key] === "number") vals[c.key] = proof.metrics[c.key];
-      state.gates[g.id] = {values: vals, t: Date.now(), proofMode: proof.mode}; touch(); render();
+      state.gates[g.id] = {values: vals, t: Date.now(), proofMode: proof.mode}; touch("gates"); render();
       toast(proof.mode === "sim" ? "Imported simulation values; real runs replace these" : "Proof imported");
     }catch(err){ toast(err.message || "Not a proof file"); }
   }});
@@ -432,8 +591,7 @@ function viewGate(ph){
 
 function viewPlan(m){
   const P = DATA.project, A = DATA.architecture, PA = DATA.path;
-  m.append(el("h1", null, "The plan"));
-  m.append(el("p", {class: "lede"}, P.tagline));
+  m.append(el("h1", null, "The plan"), el("p", {class: "lede"}, P.tagline));
   m.append(el("h2", null, "What counts as the MVP"), el("ul", null, P.mvp_definition.map(x => el("li", null, x))));
   m.append(el("h2", null, "Working principles"), el("dl", {class: "pairs"}, P.principles.flatMap(([a, b]) => [el("dt", null, a), el("dd", null, b)])));
   m.append(el("h2", null, "Roles"), el("dl", {class: "pairs"}, P.roles.flatMap(([a, b]) => [el("dt", null, a), el("dd", null, b)])));
@@ -466,8 +624,7 @@ function viewParts(m){
   m.append(el("p", null, "Estimates are in Canadian dollars from typical AliExpress and Amazon.ca listings in late 2026; check the price before you buy. Order each group just ahead of the phase that needs it."));
   let lo = 0, hi = 0, spent = 0, open = 0;
   for (const b of DATA.bom){
-    const st = bomStatus(b), paid = (state.bom[b.id] && Number(state.bom[b.id].paid)) || 0;
-    spent += paid;
+    const st = bomStatus(b); spent += (state.bom[b.id] && Number(state.bom[b.id].paid)) || 0;
     if (st !== "have"){ lo += b.qty * b.lo; hi += b.qty * b.hi; open++; }
   }
   m.append(el("div", {class: "totals"},
@@ -481,11 +638,11 @@ function viewParts(m){
   const tb = el("tbody");
   for (const b of rows){
     const st = bomStatus(b);
-    const sel = el("select", {"aria-label": "Status of " + b.name, onchange: e => { state.bom[b.id] = {...(state.bom[b.id] || {}), st: e.target.value}; touch(); render(); }},
+    const sel = el("select", {"aria-label": "Status of " + b.name, onchange: e => { state.bom[b.id] = {...(state.bom[b.id] || {}), st: e.target.value, t: Date.now()}; touch("bom"); render(); }},
       [["need", "Need"], ["ordered", "Ordered"], ["have", "Have"]].map(([v, l]) => el("option", {value: v, selected: st === v ? true : null}, l)));
     const paid = el("input", {type: "number", step: "0.01", min: "0", placeholder: "paid", "aria-label": "Paid for " + b.name});
     if (state.bom[b.id] && state.bom[b.id].paid) paid.value = state.bom[b.id].paid;
-    paid.addEventListener("change", () => { state.bom[b.id] = {...(state.bom[b.id] || {}), paid: paid.value === "" ? null : Number(paid.value)}; touch(); render(); });
+    paid.addEventListener("change", () => { state.bom[b.id] = {...(state.bom[b.id] || {}), paid: paid.value === "" ? null : Number(paid.value), t: Date.now()}; touch("bom"); render(); });
     tb.append(el("tr", {class: st},
       el("td", null, el("div", {class: "nm"}, b.name), b.note ? el("div", {class: "nt"}, b.note) : null, el("div", {class: "nt"}, b.id)),
       el("td", {class: "num"}, b.qty),
@@ -504,7 +661,7 @@ function viewMethods(m){
   m.append(el("h2", null, "(c) Recipes"), el("dl", {class: "pairs"}, DATA.recipes.flatMap(([a, b]) => [el("dt", null, a), el("dd", null, b)])));
 }
 
-/* ---------- Ask the lab manager ---------- */
+/* ---------- Ask ---------- */
 const RULES = `You are the lab manager and instructor for WetStack-0, a home-lab electro-chemical neuron project. The person asking is your junior lab partner and does the hands-on work at a home bench.
 How to answer:
 - Be specific and practical: name the exact next action, the expected reading, and how to tell success from failure.
@@ -519,7 +676,7 @@ function contextFor(stepId){
     const s = STEP[stepId], ph = PH.find(p => p.id === s.phase);
     lines.push(`Current phase ${ph.id} "${ph.title}". Goal: ${ph.goal}`);
     lines.push(`Current step ${s.id} "${s.title}" (status: ${stepState(s.id)}). Instructions: ${s.detail}${s.cmd ? " Command: " + s.cmd : ""}`);
-    if (notes.notes[s.id]) lines.push(`My notes on this step: ${notes.notes[s.id].slice(0, 1500)}`);
+    if (noteGet(s.id)) lines.push(`My notes on this step: ${noteGet(s.id).slice(0, 1500)}`);
     const ev = gateEval(ph);
     lines.push(`Gate ${ph.gate.id} "${ph.gate.name}": ` + ev.rows.map(r => `${r.label} target ${r.op} ${r.value}, measured ${r.got ?? "not yet"}`).join("; "));
     for (const h of ph.hypotheses) lines.push(`Hypothesis ${h.id}: ${h.text} Pass: ${h.pass} Control: ${h.control}`);
@@ -532,57 +689,62 @@ function contextFor(stepId){
 function threadFor(stepId){ return entries.filter(e => e.kind === "qa" && (e.step || "general") === stepId).sort((a, b) => a.t - b.t); }
 function viewAsk(m){
   m.append(el("h1", null, "Ask the lab manager"));
+  if (store.mode === "server") m.append(el("p", null, "Questions save into progress.json for Claude Code. In Claude Code, say \"answer my lab questions\"; answers appear here within 15 seconds."));
   const sel = el("select", {"aria-label": "Context", onchange: e => { ui.askStep = e.target.value; render(); }},
     el("option", {value: "general", selected: ui.askStep === "general" ? true : null}, "General question"),
     PH.map(ph => el("optgroup", {label: `${ph.id} ${ph.title}`}, ph.steps.map(s => el("option", {value: s.id, selected: ui.askStep === s.id ? true : null}, `${s.id} ${s.title}`)))));
   m.append(el("div", {class: "filters"}, el("span", {class: "muted"}, "About"), sel));
   const thread = el("div", {class: "thread"});
   const past = threadFor(ui.askStep);
-  if (!past.length && !askBusy) thread.append(el("div", {class: "empty"}, "No questions on this yet. Your step, notes and gate numbers are sent along, so you can ask short questions like \"is this current normal?\""));
+  if (!past.length && !askBusy) thread.append(el("div", {class: "empty"}, "No questions on this yet. Your step, notes and gate numbers go along with the question, so short questions work."));
   for (const e of past){
     thread.append(el("div", {class: "msg me"}, el("span", {class: "who"}, new Date(e.t).toLocaleString()), e.q));
-    if (e.asset) thread.append(el("img", {src: "/_blob/" + e.asset, alt: "Attached photo", style: "max-width:240px;border-radius:8px"}));
-    thread.append(el("div", {class: "msg lab"}, el("span", {class: "who"}, "Lab manager"), e.a));
+    if (imgSrc(e)) thread.append(el("img", {src: imgSrc(e), alt: "Attached photo", style: "max-width:240px;border-radius:8px"}));
+    thread.append(e.a ? el("div", {class: "msg lab"}, el("span", {class: "who"}, e.a_by || "Lab manager"), e.a)
+                      : el("div", {class: "msg lab muted"}, el("span", {class: "who"}, "Waiting"), "Not answered yet. In Claude Code, say \"answer my lab questions\"."));
   }
-  const live = el("div", {class: "msg lab", id: "live", style: askBusy ? "" : "display:none"}, el("span", {class: "who"}, "Lab manager"), el("span", {id: "livetext"}, askLive || "Thinking..."));
-  thread.append(live);
+  thread.append(el("div", {class: "msg lab", style: askBusy ? "" : "display:none"}, el("span", {class: "who"}, "Lab manager"), el("span", {id: "livetext"}, askLive || "Thinking...")));
   m.append(thread);
   const q = el("textarea", {placeholder: "What's happening, what you measured, what you want to know", "aria-label": "Question"});
   const file = el("input", {type: "file", accept: "image/jpeg,image/png,image/webp", "aria-label": "Attach a photo"});
-  const send = el("button", {class: "btn solid", disabled: askBusy ? true : null}, "Send");
+  const live = !!cap.sample;
+  const send = el("button", {class: "btn solid", disabled: askBusy ? true : null, onclick: () => ask(q, file)}, live ? "Send" : store.mode === "server" ? "Save question for Claude Code" : "Copy for a chat");
   const stop = el("button", {class: "btn", style: askBusy ? "" : "display:none", onclick: () => askCtl && askCtl.abort()}, "Stop");
-  const copyCtx = el("button", {class: "btn quiet", onclick: () => copy(RULES + "\n\n" + contextFor(ui.askStep) + "\n\nMy question: " + q.value)}, "Copy for a claude.ai chat");
-  send.addEventListener("click", () => ask(q, file));
-  const compose = el("div", {class: "compose"}, q, el("div", {class: "tools"}, send, stop,
-    cap.sample && cap.imagesOk ? el("label", {class: "small"}, "Photo ", file) : null, copyCtx));
-  if (!cap.sample) compose.append(el("p", {class: "small muted"}, "Asking from here works in the published workspace. Here, copy the question with its context and paste it into a chat with Claude."));
+  const showFile = (live && cap.imagesOk) || store.mode === "server";
+  const compose = el("div", {class: "compose"}, q, el("div", {class: "tools"}, send, stop, showFile ? el("label", {class: "small"}, "Photo ", file) : null,
+    el("button", {class: "btn quiet", onclick: () => copy(RULES + "\n\n" + contextFor(ui.askStep) + "\n\nMy question: " + q.value)}, "Copy with context")));
+  if (!live && store.mode !== "server") compose.append(el("p", {class: "small muted"}, "Opened as a plain file, this page can't send questions. Copy the question with its context and paste it into Claude Code or a claude.ai chat, or open the page with python -m wetstack serve."));
   m.append(compose);
 }
 async function ask(q, file){
   const text = q.value.trim();
   if (!text || askBusy) return;
-  if (!cap.sample){ copy(RULES + "\n\n" + contextFor(ui.askStep) + "\n\nMy question: " + text); return; }
   const stepId = ui.askStep, img = file && file.files && file.files[0] ? file.files[0] : null;
+  if (!cap.sample){
+    if (store.mode !== "server"){ copy(RULES + "\n\n" + contextFor(stepId) + "\n\nMy question: " + text); return; }
+    let where = {};
+    if (img){ try{ where = await uploadPhoto(img, stepId); }catch(e){ toast(e.message); } }
+    await addEntry({kind: "qa", step: stepId === "general" ? null : stepId, q: text, a: "", ...where});
+    toast("Question saved for Claude Code"); return;
+  }
   const turns = [{role: "user", content: RULES + "\n\nProject context:\n" + contextFor(stepId)}];
-  for (const e of threadFor(stepId).slice(-4)){ turns.push({role: "user", content: e.q}); turns.push({role: "assistant", content: e.a}); }
+  for (const e of threadFor(stepId).slice(-4)) if (e.a){ turns.push({role: "user", content: e.q}); turns.push({role: "assistant", content: e.a}); }
   turns.push({role: "user", content: text});
   askBusy = true; askLive = ""; askCtl = new AbortController(); render();
   try{
     const opts = {signal: askCtl.signal, cache: false, onText: ({text}) => { askLive = text; const n = document.getElementById("livetext"); if (n) n.textContent = text; }};
     if (img) opts.images = [img];
     const res = await cap.sample(turns, opts);
-    let assetId = null;
-    if (img && cap.assets){ try{ assetId = (await cap.assets.upload(img)).id; }catch(e){} }
+    let where = {};
+    if (img){ try{ where = await uploadPhoto(img, stepId); }catch(e){} }
     askBusy = false; askLive = "";
-    await addEntry({kind: "qa", step: stepId, q: text, a: res.text + (res.truncated ? "\n\n(Answer cut short; ask for the rest.)" : ""), asset: assetId});
+    await addEntry({kind: "qa", step: stepId, q: text, a: res.text + (res.truncated ? "\n\n(Answer cut short; ask for the rest.)" : ""), ...where});
   }catch(e){
-    askBusy = false;
-    const partial = e && e.text ? e.text : "";
-    askLive = "";
+    askBusy = false; askLive = "";
     const msgs = {not_granted: "Asking Claude was not allowed for this page.", rate_limited: "Too many questions right now; try again in a minute.",
       session_expired: "Sign in to claude.ai again.", refused: "That question could not be answered; rephrase it.", image_rejected: "That photo could not be read; try a JPEG under 20 MB."};
     if (e && (e.code === "not_granted" || e.code === "sampling_disabled")) cap.sample = null;
-    if (partial && e.code !== "refused") await addEntry({kind: "qa", step: stepId, q: text, a: partial + "\n\n(Interrupted.)"});
+    if (e && e.text && e.code !== "refused") await addEntry({kind: "qa", step: stepId, q: text, a: e.text + "\n\n(Interrupted.)"});
     if (!e || e.code !== "cancelled") toast(msgs[e && e.code] || "Could not reach Claude; try again.");
   }
   askCtl = null; render();
@@ -594,21 +756,18 @@ function viewLog(m){
   m.append(el("p", null, "Notes and photos from the bench, newest first. Photos attached to steps appear here too."));
   const stepSel = el("select", {"aria-label": "Step"}, el("option", {value: ""}, "No particular step"), ALLSTEPS.map(s => el("option", {value: s.id}, `${s.id} ${s.title}`)));
   const ta = el("textarea", {placeholder: "What you did, saw or measured", "aria-label": "Log entry"});
-  const save = el("button", {class: "btn solid", onclick: async () => {
-    if (!ta.value.trim()) return;
-    await addEntry({kind: "note", step: stepSel.value || null, text: ta.value.trim()}); ta.value = ""; toast("Logged");
-  }}, "Add to log");
+  const save = el("button", {class: "btn solid", onclick: async () => { if (!ta.value.trim()) return; await addEntry({kind: "note", step: stepSel.value || null, text: ta.value.trim()}); ta.value = ""; toast("Logged"); }}, "Add to log");
   m.append(el("div", {class: "compose"}, el("div", {class: "filters"}, stepSel), ta, el("div", {class: "tools"}, save, uploadButton(null, "Add photo to log"))));
   const list = entries.filter(e => e.kind !== "qa").sort((a, b) => b.t - a.t);
   if (!list.length) m.append(el("div", {class: "empty", style: "margin-top:16px"}, "Nothing logged yet. Start with a photo of your bench."));
   for (const e of list){
     m.append(el("div", {class: "entry"}, el("div", {class: "small muted"}, new Date(e.t).toLocaleString() + (e.step ? `, step ${e.step}` : "")),
-      e.asset ? el("img", {src: "/_blob/" + e.asset, alt: e.text || "Lab photo", loading: "lazy"}) : null,
+      imgSrc(e) ? el("img", {src: imgSrc(e), alt: e.text || "Lab photo", loading: "lazy"}) : null,
       e.kind === "note" ? el("p", null, e.text) : el("p", {class: "small muted"}, e.text || "")));
   }
 }
 
-/* ---------- Sync ---------- */
+/* ---------- Save and sync ---------- */
 function progressMarkdown(){
   const L = ["# WetStack-0 progress", "", `Exported ${new Date().toISOString()}`, ""];
   for (const ph of PH){
@@ -621,7 +780,7 @@ function progressMarkdown(){
   }
   return L.join("\n");
 }
-async function save(filename, data){
+async function saveFile(filename, data){
   if (cap.downloads){
     try{ await cap.downloads.save({filename, data}); toast("Saved " + filename); return; }
     catch(e){ if (e && e.code === "declined") return; }
@@ -629,68 +788,107 @@ async function save(filename, data){
   const a = el("a", {href: URL.createObjectURL(new Blob([data])), download: filename}); document.body.append(a); a.click(); a.remove();
 }
 function viewSync(m){
-  m.append(el("h1", null, "Sync and backup"));
-  m.append(el("p", null, progressRef ? "Your progress, notes, photos and questions are saved to this workspace on claude.ai and stay private to you. A copy is also kept in this browser." :
-    "This copy saves only in this browser. Open the published workspace on claude.ai to keep photos and progress across devices."));
-  m.append(el("h2", null, "Export"));
-  m.append(el("p", null, "Commit both files to the repo after each session: PROGRESS.md shows completion markers on GitHub, and the JSON restores everything here."));
+  m.append(el("h1", null, "Save and sync"));
+  const modeText = {
+    server: `Every change saves within a second to progress/progress.json in ${store.repo || "your repo"} (revision ${store.rev}). Each save is atomic and the previous version goes to progress/backups/. PROGRESS.md is rebuilt on every save. If the server stops, changes wait in this browser and save when it's back.`,
+    workspace: "Progress, notes, photos and questions save to this workspace on claude.ai, private to you. A copy is also kept in this browser.",
+    browser: "This page was opened as a plain file, so it saves only in this browser. For saving into the repo, start it with python -m wetstack serve --open. Until then, export a JSON file at the end of every session.",
+  }[store.mode];
+  m.append(el("p", null, modeText));
+  if (store.mode === "server"){
+    const msg = el("input", {type: "text", placeholder: "Session message, e.g. P0 pipette calibration", style: "min-width:260px;flex:1", "aria-label": "Commit message"});
+    const push = el("input", {type: "checkbox", id: "pushbox", checked: true});
+    const out = el("pre", {class: "small", style: "white-space:pre-wrap;display:none"});
+    const btn = el("button", {class: "btn solid", onclick: async () => {
+      btn.disabled = true; out.style.display = "block"; out.textContent = "Committing...";
+      try{
+        if (local.dirty) await serverSave();
+        const r = await fetch("/api/commit", {method: "POST", headers: {"Content-Type": "application/json", "X-WetStack": "1"}, body: JSON.stringify({message: msg.value, push: push.checked})});
+        const j = await r.json(); out.textContent = (j.ok ? "Done.\n" : "Not finished:\n") + (j.log || j.error || "");
+      }catch(e){ out.textContent = "The server did not answer: " + e.message; }
+      btn.disabled = false;
+    }}, "Commit to git");
+    m.append(el("h2", null, "Commit this session"), el("div", {class: "tools"}, msg, btn, el("label", {class: "small", for: "pushbox"}, push, " and push to GitHub")), out);
+  }
+  m.append(el("h2", null, "Export a backup"));
   const stamp = new Date().toISOString().slice(0, 10);
   m.append(el("div", {class: "tools"},
-    el("button", {class: "btn solid", onclick: () => save("PROGRESS.md", progressMarkdown())}, "Save PROGRESS.md"),
-    el("button", {class: "btn", onclick: () => save(`wetstack-progress-${stamp}.json`, JSON.stringify({exported: Date.now(), state, notes, entries: entries.map(e => ({...e}))}, null, 1))}, "Save progress JSON")));
-  m.append(el("h2", null, "Import"));
-  const imp = el("input", {type: "file", accept: ".json,application/json", onchange: async e => {
+    el("button", {class: "btn", onclick: () => saveFile(`wetstack-progress-${stamp}.json`, JSON.stringify(doc, null, 1))}, "Save progress JSON"),
+    store.mode === "server" ? null : el("button", {class: "btn", onclick: () => saveFile("PROGRESS.md", progressMarkdown())}, "Save PROGRESS.md")));
+  m.append(el("h2", null, "Load a file"));
+  m.append(el("p", null, "Merging keeps everything from both sides, taking the newer version of each step, note, part and gate. Replacing throws away what's here, so it asks first."));
+  const pick = (mode) => el("input", {type: "file", accept: ".json,application/json", style: "display:none", onchange: async e => {
     const f = e.target.files[0]; if (!f) return;
     try{
-      const d = JSON.parse(await f.text());
-      if (!d.state || !d.state.steps) throw new Error("Not a WetStack progress file");
-      if (!confirm("Replace the progress on this page with the imported file?")) return;
-      state = d.state; notes = d.notes || notes; state.updated = Date.now(); notes.updated = Date.now();
-      writeLS(LS.state, state); writeLS(LS.notes, notes); schedulePush(); touchNotes(); render(); toast("Imported");
-    }catch(err){ toast(err.message || "Could not read that file"); }
+      const incoming = migrate(JSON.parse(await f.text()));
+      if (mode === "replace"){
+        if (!confirm("Replace everything on this page with the file? The current version stays in backups if you use the local server.")) return;
+        incoming.rev = doc.rev; adopt(incoming);
+        Object.values(state.steps).concat(Object.values(state.gates), Object.values(state.bom), Object.values(doc.notes)).forEach(x => x.t = Date.now());
+        state.meta.t = Date.now();
+      } else adopt(mergeDocs(doc, incoming));
+      touch("import"); render(); toast(mode === "replace" ? "Replaced" : "Merged");
+    }catch(err){ toast("Could not read that file: " + (err.message || "not JSON")); }
   }});
-  m.append(el("label", {class: "btn"}, "Import progress JSON ", imp));
-  m.append(el("h2", null, "Getting a review"));
-  m.append(el("p", null, "To have the lab manager check your progress, gate numbers and photos in a chat, paste this workspace's link into a claude.ai conversation and ask for a progress review."));
+  m.append(el("div", {class: "tools"}, el("label", {class: "btn"}, "Merge a file", pick("merge")), el("label", {class: "btn quiet"}, "Replace with a file", pick("replace"))));
+  m.append(el("h2", null, "Recovery"));
+  m.append(el("ul", null,
+    el("li", null, "Every server save keeps the previous version in progress/backups/ (last 40). Restore one with ", el("code", null, "python -m wetstack progress restore progress/backups/<file>"), "."),
+    el("li", null, "Committed versions are in git history: ", el("code", null, "git log -- progress/progress.json"), "."),
+    el("li", null, "This browser always keeps its own copy, so a closed tab or a stopped server never loses an edit.")));
   const theme = el("select", {"aria-label": "Theme", onchange: e => { const v = e.target.value; if (v === "auto") document.documentElement.removeAttribute("data-theme"); else document.documentElement.setAttribute("data-theme", v); try{ localStorage.setItem("wetstack0.theme", v); }catch(_){} }},
-    [["auto", "Match device"], ["light", "Light"], ["dark", "Dark"]].map(([v, l]) => el("option", {value: v, selected: (localStorage.getItem("wetstack0.theme") || "auto") === v ? true : null}, l)));
+    [["auto", "Match device"], ["light", "Light"], ["dark", "Dark"]].map(([v, l]) => el("option", {value: v, selected: ((() => { try{ return localStorage.getItem("wetstack0.theme"); }catch(_){ return null; } })() || "auto") === v ? true : null}, l)));
   m.append(el("h2", null, "Display"), el("div", {class: "filters"}, el("span", null, "Theme"), theme));
 }
 
-/* ---------- capabilities ---------- */
+/* ---------- connect ---------- */
 async function connect(){
-  if (!window.claude || typeof window.claude.use !== "function") return;
+  if (location.protocol.startsWith("http") && ["127.0.0.1", "localhost"].includes(location.hostname)){
+    try{
+      const r = await fetch("/api/ping", {cache: "no-store"});
+      const j = await r.json();
+      if (j.server === "wetstack"){ store.mode = "server"; store.repo = j.repo; await serverConnect(); safeRender(); return; }
+    }catch(e){}
+  }
+  if (!window.claude || typeof window.claude.use !== "function"){ setStatus(); return; }
   const names = ["db", "user", "assets", "sample", "downloads"];
   const got = await Promise.all(names.map(n => window.claude.use(n).catch(() => null)));
   names.forEach((n, i) => cap[n] = got[i]);
   if (cap.sample){ try{ const lim = await cap.sample.limits(); cap.imagesOk = !!(lim && lim.images); }catch(e){ cap.imagesOk = false; } }
-  if (cap.db && cap.user){
-    try{ uid = await cap.user.id(); }catch(e){ uid = null; }
-    if (uid){
-      progressRef = cap.db.doc(`data/users/${uid}/progress`);
-      notesRef = cap.db.doc(`data/users/${uid}/notes`);
-      entriesCol = cap.db.doc(`data/users/${uid}/journal`).collection("entries");
-      const dot = document.getElementById("syncdot"); dot.classList.add("on"); dot.querySelector("span").textContent = "Saved to workspace";
-      progressRef.onSnapshot(snap => {
-        if (snap.metadata && snap.metadata.hasPendingWrites) return;
-        if (!snap.exists){ if (state.updated) pushProgress(); return; }
-        const d = snap.data();
-        if ((d.updated || 0) > (state.updated || 0)){ state = JSON.parse(JSON.stringify(d)); writeLS(LS.state, state); safeRender(); }
-        else if ((state.updated || 0) > (d.updated || 0)) schedulePush();
-      }, () => {});
-      notesRef.onSnapshot(snap => {
-        if (snap.metadata && snap.metadata.hasPendingWrites) return;
-        if (!snap.exists){ if (notes.updated) touchNotes(); return; }
-        const d = snap.data();
-        if ((d.updated || 0) > (notes.updated || 0)){ notes = JSON.parse(JSON.stringify(d)); writeLS(LS.notes, notes); safeRender(); }
-      }, () => {});
-      const localOnly = entries.slice();
-      entriesCol.orderBy("t", "desc").limit(400).onSnapshot(qs => {
-        entries = qs.docs.map(d => ({id: d.id, ...d.data()}));
-        writeLS(LS.entries, entries); safeRender();
-      }, () => {});
-      for (const e of localOnly) if (!e.id && !e.asset){ try{ await entriesCol.add(e); }catch(_){} }
-    }
+  let uid = null;
+  if (cap.db && cap.user){ try{ uid = await cap.user.id(); }catch(e){ uid = null; } }
+  if (uid){
+    store.mode = "workspace";
+    progressRef = cap.db.doc(`data/users/${uid}/progress`);
+    notesRef = cap.db.doc(`data/users/${uid}/notes`);
+    entriesCol = cap.db.doc(`data/users/${uid}/journal`).collection("entries");
+    progressRef.onSnapshot(snap => {
+      if (snap.metadata && snap.metadata.hasPendingWrites) return;
+      if (!snap.exists){ if (doc.updated) pushProgress(); return; }
+      const d = snap.data();
+      const remote = migrate({state: d.state || d, updated: d.updated});
+      const merged = mergeDocs({...remote, notes: doc.notes, entries: doc.entries}, doc);
+      const changedLocal = JSON.stringify(merged.state) !== JSON.stringify(remote.state);
+      adopt(merged); persistLocal(); safeRender();
+      if (changedLocal) schedulePush();
+    }, () => {});
+    notesRef.onSnapshot(snap => {
+      if (snap.metadata && snap.metadata.hasPendingWrites) return;
+      if (!snap.exists){ if (Object.keys(doc.notes).length) scheduleNotesPush(); return; }
+      const remote = migrate({notes: snap.data()});
+      const merged = mergeDocs({...doc, notes: remote.notes}, doc);
+      const changedLocal = JSON.stringify(merged.notes) !== JSON.stringify(remote.notes);
+      adopt(merged); persistLocal(); safeRender();
+      if (changedLocal) scheduleNotesPush();
+    }, () => {});
+    const pending = doc.entries.slice();
+    entriesCol.orderBy("t", "desc").limit(1000).onSnapshot(qs => {
+      const remote = qs.docs.map(d => ({...d.data(), id: d.id}));
+      const ids = new Set(remote.map(e => e.id));
+      doc.entries = remote.concat(doc.entries.filter(e => !ids.has(e.id) && !e._synced)).sort((a, b) => a.t - b.t);
+      entries = doc.entries; persistLocal(); safeRender();
+    }, () => {});
+    for (const e of pending){ try{ await entriesCol.doc(e.id).set(e); }catch(_){} }
   }
   safeRender();
 }

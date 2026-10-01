@@ -142,7 +142,8 @@ METHODS = [
     ["Statistics", "Accuracy with a 95% Wilson interval; 1000-shuffle permutation test for classification; logistic fits for thresholds; R-squared for calibrations."],
     ["Controls", "Raw-input linear baseline, single-indicator control, shuffled labels, undoped gel, reverse polarity. Listed per gate."],
     ["Temperature", "Log reservoir temperature on every run. Indicator pKa shifts with temperature; a 5 C change is visible."],
-    ["Version control", "Commit after every session. Tag each passed gate (git tag G3-pass). Proof JSON files live in proofs/."],
+    ["Version control", "Commit after every session (the workspace's Commit button does it). Tag each passed gate (git tag G3-pass). Proof JSON files live in proofs/."],
+    ["Progress records", "progress/progress.json in the repo is the master record, written by python -m wetstack serve. Every save is atomic and keeps a backup in progress/backups/. If two writers collide, items merge by timestamp; nothing is dropped. PROGRESS.md is regenerated from it on every save."],
     ["Photos", "Photograph every build step and every gate result, and upload it to the step in the workspace."],
     ["When a gate fails", "Stop. Record the numbers. Work the troubleshooting list for that gate. Ask in the workspace with your data attached before changing two things at once."],
 ]
@@ -179,7 +180,7 @@ PHASES = [
              "detail": "Choose a surface away from food prep. Lay the silicone mat or spill tray. Place the waste jar, wash bottle of distilled water, gloves and glasses within reach. Photograph the bench.",
              "photo": True},
             {"id": "P0.3", "title": "Install the software",
-             "detail": "Unzip the repo (or clone your GitHub copy). In a terminal at the repo root: python -m venv .venv, activate it (Windows: .venv\\Scripts\\activate, Linux: source .venv/bin/activate), then pip install -e . and run the full digital twin. It takes about a minute and must end with Self-test PASSED.",
+             "detail": "Unzip the repo (or clone your GitHub copy). In a terminal at the repo root: python -m venv .venv, activate it (Windows: .venv\\Scripts\\activate, Linux: source .venv/bin/activate), then pip install -e . and run the full digital twin. It takes about a minute and must end with Self-test PASSED. From then on, start every session with python -m wetstack serve --open: the workspace opens in your browser and saves into progress/progress.json in the repo.",
              "cmd": "python -m wetstack selftest --sim"},
             {"id": "P0.4", "title": "Check the scale",
              "detail": "Weigh the calibration weight that came with the scale three times. All three readings should be within 0.005 g of the stated value. Tare between readings."},

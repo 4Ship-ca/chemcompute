@@ -19,6 +19,18 @@ pip install -e .
 python -m wetstack selftest     # every gate against the digital twin, about 30 s, must end PASSED
 ```
 
+Then start every bench session with:
+
+```
+python -m wetstack serve --open
+```
+
+That opens the lab workspace in your browser and saves everything into the repo:
+`progress/progress.json` (the master record), `PROGRESS.md` (checkboxes for GitHub) and
+`photos/<step>/`. Saves are atomic, every save keeps a backup in `progress/backups/`, and if the
+server stops, edits wait in the browser and save when it returns. The workspace's
+Save and sync tab has a Commit button that commits and pushes the session.
+
 Every experiment command takes `--sim` so you can rehearse it before using liquids:
 
 ```
@@ -38,6 +50,9 @@ python -m wetstack gate G1 --sim
 | `proofs/` | Gate proof files written by the experiment commands |
 | `data/raw/` | Raw session data, never edited |
 | `config/lab.json` | Your bench settings (created on first run) |
+| `progress/progress.json` | Master progress record written by `python -m wetstack serve`; never edit by hand |
+| `photos/<step>/` | Bench photos, resized to 1600 px |
+| `tests/` | `test_progress.py` (storage, must pass) and `e2e_workspace.py` (browser test, needs Playwright) |
 | `tools/content.py` | Single source for the manual, BOM and workspace; rebuild with `python tools/build.py` |
 | `web/` | Workspace page (offline copy works in any browser, saving to that browser only) |
 
