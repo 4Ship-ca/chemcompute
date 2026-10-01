@@ -12,6 +12,15 @@ https://claude.ai/artifact/Spr4Hz1cUCdgWMjxmdhvYG
 
 ## Quick start
 
+**Windows, one click:** double-click `start_wetstack.bat` in the repo folder. It finds Python 3.10+
+(3.12 preferred), creates `.venv`, checks every dependency and installs or repairs what's missing,
+runs the self-test after a fresh install, then starts the lab workspace and opens it in your browser.
+Double-click it again while it's running and it just reopens the page. From a prompt it also runs any
+other command in the venv: `start_wetstack.bat gate G0`, `start_wetstack.bat g1-linearity --sim`.
+Set `WETSTACK_PORT` to use a port other than 8765.
+
+By hand (Windows or Linux):
+
 ```
 python -m venv .venv
 .venv\Scripts\activate          # Linux: source .venv/bin/activate
@@ -54,6 +63,7 @@ python -m wetstack gate G1 --sim
 | `photos/<step>/` | Bench photos, resized to 1600 px |
 | `tests/` | `test_progress.py` (storage) and `test_cli.py` (every manual command parses) must pass; `e2e_workspace.py` is the browser test (needs Playwright) |
 | `tools/content.py` | Single source for the manual, BOM and workspace; rebuild with `python tools/build.py` |
+| `start_wetstack.bat`, `tools/check_env.py` | Windows one-click launcher and the dependency / running-server check it uses |
 | `web/` | Workspace page (offline copy works in any browser, saving to that browser only) |
 
 ## Status at handover
