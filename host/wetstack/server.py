@@ -12,6 +12,7 @@ from __future__ import annotations
 
 import datetime as dt
 import json
+import os
 import re
 import subprocess
 import threading
@@ -182,11 +183,22 @@ class Handler(BaseHTTPRequestHandler):
             return self._send(400, {"error": str(e)})
 
 
+class WorkspaceServer(ThreadingHTTPServer):
+    # On Windows, SO_REUSEADDR lets a server bind a port another program already listens on, and
+    # requests then reach either one. Windows doesn't need it for quick restarts (TIME_WAIT never
+    # blocks bind there), so only set it elsewhere.
+    allow_reuse_address = os.name != "nt"
+
+
 def serve(port: int = 8765, open_browser: bool = False) -> None:
     if not PAGE.exists():
         raise SystemExit("web/wetstack_lab.html is missing. Run: python tools/build.py")
     Handler.port = port
-    httpd = ThreadingHTTPServer(("127.0.0.1", port), Handler)
+    try:
+        httpd = WorkspaceServer(("127.0.0.1", port), Handler)
+    except OSError as exc:
+        raise SystemExit(f"Port {port} is not available ({exc}). Pick another: python -m wetstack serve --port {port + 1}"
+                         " (start_wetstack.bat finds a free one by itself).") from None
     url = f"http://127.0.0.1:{port}/"
     doc = ps.load()
     print(f"WetStack workspace at {url}")
