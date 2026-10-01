@@ -47,7 +47,7 @@ def g0_pipette(volume: int, sim: bool, seed: int = 1) -> dict:
     dispensed_uL = np.diff(np.concatenate([[0.0], cumulative_g])) * 1000.0
     err = abs(float(np.mean(dispensed_uL)) - volume) / volume * 100
     cv = ro.cv_pct(dispensed_uL)
-    d = session_dir(f"g0-pipette-{volume}")
+    d = session_dir(f"g0-pipette-{volume}", sim)
     save_raw(d, "pipette.json", {"volume_uL": volume, "dispensed_uL": dispensed_uL.tolist()})
     if not sim:
         cfg = load_config()
@@ -101,7 +101,7 @@ def g1_linearity(sim: bool, stability: bool, seed: int = 7) -> dict:
             series.append(float(np.mean([r[p][0] for p in top])))
         drift = abs(series[-1] - series[0]) / series[0] * 100
         metrics["drift_pct_10min"] = drift
-    d = session_dir("g1-linearity")
+    d = session_dir("g1-linearity", sim)
     save_raw(d, "g1.json", {"layout": layout, "reads": [{k: v.tolist() for k, v in r.items()} for r in reads],
                             "slope_per_uM": slope, "drift_series": drift})
     print(f"R2 {r2:.4f}, slope {slope * 1000:.2f} mAbs/uM, read CV {read_cv:.2f}%, blank {blank_abs:.4f}"
@@ -133,7 +133,7 @@ def g2_xor(sim: bool, plates: int, control: str | None, seed: int = 11) -> dict:
             rows.append({"plate": plate + 1, "pos": pos, "a": a, "b": b, "abs": absorb[pos].tolist()})
     X, y, raw = np.array(X), np.array(y), np.array(raw, dtype=float)
     acc = ro.cv_accuracy(X, y)
-    d = session_dir(f"g2-xor-{medium}")
+    d = session_dir(f"g2-xor-{medium}", sim)
     save_raw(d, "g2.json", rows)
     lo, hi = ro.wilson(int(round(acc * len(y))), len(y))
     if control == "single-indicator":
@@ -164,7 +164,7 @@ def g3_charge_cal(sim: bool, port: str | None, seed: int = 13) -> dict:
         cur_err.append(abs(r["mean_mA"] - meter) / meter * 100)
         q_err.append(abs(r["delivered_mC"] - target) / target * 100)
         rows.append({**r, "meter_mA": meter})
-    d = session_dir("g3-charge-cal")
+    d = session_dir("g3-charge-cal", sim)
     save_raw(d, "charge_cal.json", rows)
     err = max(float(np.mean(cur_err)), float(np.mean(q_err)))
     print(f"Current error {np.mean(cur_err):.2f}%, charge error {np.mean(q_err):.2f}% -> {err:.2f}%")
@@ -219,7 +219,7 @@ def g3_faraday(sim: bool, port: str | None, seed: int = 17) -> dict:
         effs.append(eff)
         raw["repeats"].append({"eq_umol": eq.tolist(), "theory_umol": theory.tolist(), "eff": eff})
         print(f"  repeat {rep + 1}: Faradaic efficiency {eff:.3f} ({int(use.sum())} points in the usable range)")
-    d = session_dir("g3-faraday")
+    d = session_dir("g3-faraday", sim)
     save_raw(d, "faraday.json", raw)
     bench.close()
     return record_metrics("G3", {"faradaic_eff": float(np.mean(effs)), "dose_cv_pct": ro.cv_pct(effs)}, sim)
@@ -256,7 +256,7 @@ def g4_threshold(sim: bool, port: str | None, seed: int = 19) -> dict:
     cfg[_k("q50_fits", sim)] = {f"{b:g}": fits[b]["q50"] for b in fits}
     cfg[_k("q50_line", sim)] = {"slope_mC_per_mM": slope, "intercept_mC": icpt}
     save_config(cfg)
-    d = session_dir("g4-threshold")
+    d = session_dir("g4-threshold", sim)
     save_raw(d, "threshold.json", {"sweeps": raw, "fits": {f"{k:g}": v for k, v in fits.items()}})
     print(f"Q50 = {slope:.1f} mC/mM x borate + {icpt:.1f} mC (R2 {r2:.4f}); worst width ratio {width_ratio:.3f}"
           + (f"; unbuffered control fires at {control_ratio * 100:.1f}% of the 1 mM Q50" if control_ratio else ""))
@@ -308,7 +308,7 @@ def g4_reset(sim: bool, port: str | None, cycles: int, seed: int = 23) -> dict:
             print(f"  cycle {c}: high {hi:.2f}, low {lo:.2f}, baseline shift {deltas[-1]:.4f}")
     first, last = q50_track[min(q50_track)], q50_track[max(q50_track)]
     drift = abs(last - first) / first * 100
-    d = session_dir("g4-reset")
+    d = session_dir("g4-reset", sim)
     save_raw(d, "reset.json", {"log": log, "q50_track": q50_track})
     print(f"Q50 {first:.1f} -> {last:.1f} mC ({drift:.1f}% drift); final baseline shift {deltas[-1]:.4f}")
     bench.close()
@@ -399,7 +399,7 @@ def g5_truth(sim: bool, port: str | None, repeats: int = 10, seed: int = 29) -> 
             n += 1
             rows.append({"a": a, "b": b, "dy_or": dy[0], "dy_and": dy[1]})
             _reset_ledger(bench, ledger)
-    d = session_dir("g5-truth")
+    d = session_dir("g5-truth", sim)
     save_raw(d, "truth.json", rows)
     print(f"OR {ok_or}/{n}, AND {ok_and}/{n}")
     bench.close()
@@ -418,8 +418,9 @@ def g5_stack(sim: bool, port: str | None, trials: int, calibrate: bool, cut_inhi
         cfg[_k("stack", sim)] = st
         save_config(cfg)
         print(f"Relay gains: excitatory {st['g_or']:.1f} mC, inhibitory {st['g_and']:.1f} mC per unit signal")
-        if calibrate and trials == 0:
-            return st
+    if trials <= 0:
+        print("Gains are set. Run trials with: python -m wetstack g5-stack --trials 40")
+        return st
     bm = st["buffers_mM"]
     bench = Bench(cfg, sim, seed=seed, port=port)
     bench.fill_electrode_wells([f"neur_B{bm['OR']:g}", f"neur_B{bm['AND']:g}", f"neur_B{bm['OUT']:g}"])
@@ -460,7 +461,7 @@ def g5_stack(sim: bool, port: str | None, trials: int, calibrate: bool, cut_inhi
         _reset_ledger(bench, ledger)
     acc = correct / trials
     lo, hi = ro.wilson(correct, trials)
-    d = session_dir("g5-stack" + ("-cut" if cut_inhibition else ""))
+    d = session_dir("g5-stack" + ("-cut" if cut_inhibition else ""), sim)
     save_raw(d, "stack.json", {"stack": st, "rows": rows})
     bench.close()
     if cut_inhibition:
@@ -482,7 +483,7 @@ def _rr(rows: list[dict], v: float = 2.5) -> float:
 def g6_diode(sim: bool, port: str | None, devices: int, controls: int, sine: float | None, seed: int = 37) -> dict:
     cfg = load_config()
     bench = Bench(cfg, sim, seed=seed, port=port, need_camera=False)
-    d = session_dir("g6-diode")
+    d = session_dir("g6-diode", sim)
     if sine:
         if not sim:
             input("Connect a diode tube, scope X = cell voltage, Y = sense resistor, X-Y mode. Enter to start... ")
@@ -550,7 +551,7 @@ def g7_fiber(sim: bool, port: str | None, seed: int = 41) -> dict:
         input("Cover the plate with the dark box (the camera is now blind). Enter... ")
     blind = [bench.ctl.spec(1)["diff"][6] for _ in range(10)]
     noise = ro.cv_pct(blind)
-    d = session_dir("g7-fiber")
+    d = session_dir("g7-fiber", sim)
     save_raw(d, "fiber.json", {"camera_dA": cam, "fiber_dA": fib, "blind_counts": blind})
     print(f"Fiber vs camera R2 {r2:.4f}; blind noise {noise:.2f}%")
     bench.close()
@@ -574,6 +575,7 @@ def g8_solar(sim: bool, port: str | None, hours: float, seed: int = 43) -> dict:
         print(f"Sim: {res}")
         return record_metrics("G8", {k: res[k] for k in ("solar_hours", "writes", "brownouts", "j_per_write")}, sim)
     bench = Bench(cfg, False, seed=seed, port=port, need_camera=False)
+    bench.fill_electrode_wells(["neur_B1"], with_refs=False)
     q = 1.5 * _q50(cfg, False, 1.0)
     t0, writes, brownouts, energies = time.time(), 0, 0, []
     last_boots = bench.ctl.ping().get("boots", 0)
@@ -590,7 +592,7 @@ def g8_solar(sim: bool, port: str | None, hours: float, seed: int = 43) -> dict:
             last_boots = p["boots"]
         log.append({"t_s": time.time() - t0, "writes": writes, "power": bench.ctl.power()})
         time.sleep(45)
-    d = session_dir("g8-solar")
+    d = session_dir("g8-solar", sim)
     save_raw(d, "solar.json", log)
     bench.close()
     jpw = float(np.mean(energies)) if energies else -1.0

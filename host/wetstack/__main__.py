@@ -9,55 +9,64 @@ from . import experiments as ex
 from .core import evaluate, load_config, print_gate, proof_path
 
 
-def main(argv: list[str] | None = None) -> int:
+def build_parser() -> argparse.ArgumentParser:
     ap = argparse.ArgumentParser(prog="wetstack", description="WetStack-0 lab commands")
     ap.add_argument("--sim", action="store_true", help="run against the digital twin")
     ap.add_argument("--port", default=None, help="serial port (default from config/lab.json)")
+    # Bench commands also accept --sim and --port after the command name, as the manual writes them
+    # (python -m wetstack g1-linearity --sim). SUPPRESS keeps an omitted option from overwriting
+    # one given before the command.
+    bench = argparse.ArgumentParser(add_help=False)
+    bench.add_argument("--sim", action="store_true", default=argparse.SUPPRESS, help="run against the digital twin")
+    bench.add_argument("--port", default=argparse.SUPPRESS, help="serial port (default from config/lab.json)")
     sub = ap.add_subparsers(dest="cmd", required=True)
 
-    st = sub.add_parser("selftest", help="run every gate against the digital twin")
+    def cmd(name: str, **kw) -> argparse.ArgumentParser:
+        return sub.add_parser(name, parents=[bench], **kw)
+
+    st = cmd("selftest", help="run every gate against the digital twin")
     st.add_argument("--verbose", action="store_true")
-    sub.add_parser("ping", help="talk to the controller")
-    sub.add_parser("relay-test", help="click through relays and check the interlock")
-    sp = sub.add_parser("spec", help="one AS7341 read")
+    cmd("ping", help="talk to the controller")
+    cmd("relay-test", help="click through relays and check the interlock")
+    sp = cmd("spec", help="one AS7341 read")
     sp.add_argument("--diff", action="store_true")
-    cam = sub.add_parser("camera", help="lock exposure and preview")
+    cam = cmd("camera", help="lock exposure and preview")
     cam.add_argument("--lock", action="store_true")
     cam.add_argument("--preview", action="store_true")
-    sub.add_parser("calibrate-rois", help="click well centers")
-    g = sub.add_parser("gate", help="show a gate's status")
+    cmd("calibrate-rois", help="click well centers")
+    g = cmd("gate", help="show a gate's status")
     g.add_argument("gate")
-    sub.add_parser("sign-safety", help="record the safety sign-off")
+    cmd("sign-safety", help="record the safety sign-off")
 
-    p0 = sub.add_parser("g0-pipette")
+    p0 = cmd("g0-pipette")
     p0.add_argument("--volume", type=int, choices=[100, 1000], required=True)
-    p1 = sub.add_parser("g1-linearity")
+    p1 = cmd("g1-linearity")
     p1.add_argument("--stability", action="store_true")
-    p2 = sub.add_parser("g2-xor-manual")
+    p2 = cmd("g2-xor-manual")
     p2.add_argument("--plates", type=int, default=2)
     p2.add_argument("--control", choices=["single-indicator"], default=None)
-    p3 = sub.add_parser("g3-faraday")
+    p3 = cmd("g3-faraday")
     p3.add_argument("--charge-cal", action="store_true")
-    sub.add_parser("g4-threshold")
-    p4 = sub.add_parser("g4-reset")
+    cmd("g4-threshold")
+    p4 = cmd("g4-reset")
     p4.add_argument("--cycles", type=int, default=100)
-    p5 = sub.add_parser("g5-logic")
+    p5 = cmd("g5-logic")
     p5.add_argument("--plan", action="store_true")
     p5.add_argument("--truth", action="store_true")
-    p6 = sub.add_parser("g5-stack")
+    p6 = cmd("g5-stack")
     p6.add_argument("--calibrate", action="store_true")
     p6.add_argument("--trials", type=int, default=0)
     p6.add_argument("--cut-inhibition", action="store_true")
-    p7 = sub.add_parser("g6-diode")
+    p7 = cmd("g6-diode")
     p7.add_argument("--devices", type=int, default=3)
     p7.add_argument("--control", type=int, default=1)
     p7.add_argument("--sine", type=float, default=None)
-    sub.add_parser("g7-fiber")
-    p8 = sub.add_parser("g8-solar")
+    cmd("g7-fiber")
+    p8 = cmd("g8-solar")
     p8.add_argument("--hours", type=float, default=4.0)
-    p9 = sub.add_parser("mvp-demo")
+    p9 = cmd("mvp-demo")
     p9.add_argument("--trials", type=int, default=20)
-    sub.add_parser("report")
+    cmd("report")
     sv = sub.add_parser("serve", help="open the lab workspace, saving into the repo")
     sv.add_argument("--port", type=int, default=8765)
     sv.add_argument("--open", action="store_true", help="open it in your browser")
@@ -70,8 +79,11 @@ def main(argv: list[str] | None = None) -> int:
     pg = sub.add_parser("progress", help="progress file tools")
     pg.add_argument("action", choices=["status", "import", "export", "restore"])
     pg.add_argument("path", nargs="?", default=None)
+    return ap
 
-    a = ap.parse_args(argv)
+
+def main(argv: list[str] | None = None) -> int:
+    a = build_parser().parse_args(argv)
     sim, port = a.sim, a.port
     proof = None
 

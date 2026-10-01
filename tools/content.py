@@ -482,7 +482,7 @@ PHASES = [
         ],
         "steps": [
             {"id": "P7.1", "title": "Print fiber parts",
-             "detail": "hardware/scad/fiber_parts.scad: the lid with a center fiber port, the LED coupler and the sensor cap. Clear resin or PETG, fully cured and washed.",
+             "detail": "The lid with a fiber boss over W1 (hardware/stl/plate_lid_fiber_A3.stl; from hardware/scad/plate_lid.scad with fiber_wells = [[0,2]]), plus the LED coupler and the sensor cap (hardware/stl/fiber_led_coupler.stl and fiber_sensor_cap.stl; hardware/scad/fiber_parts.scad, part = \"led\" or \"cap\"). Opaque (black) PETG or resin so room light can't leak into the fiber; resin parts fully cured and washed.",
              "photo": True},
             {"id": "P7.2", "title": "Cut and polish fiber",
              "detail": "Cut 1 mm PMMA fiber with a fresh hot blade, polish each end on 2000-grit wet paper in figure-eights for 30 seconds."},
@@ -518,7 +518,7 @@ PHASES = [
              "photo": True},
             {"id": "P8.2", "title": "Daylight session",
              "cmd": "python -m wetstack g8-solar --hours 4",
-             "detail": "Panel in a window or outside in shade-free light. The script cycles the 1 mM neuron and logs power."},
+             "detail": "Panel in a window or outside in shade-free light. The script cycles the 1 mM neuron and logs power. Block the laptop's USB 5 V line (a USB power-blocker adapter, or Kapton tape over the VBUS pin of the USB-A plug) so the battery is the controller's only supply; otherwise USB powers the ESP32 and a brownout can never show up."},
         ],
         "gate": {"id": "G8", "name": "Sun-powered", "cmd": "python -m wetstack gate G8",
                  "criteria": [
@@ -541,7 +541,7 @@ PHASES = [
         "hypotheses": [],
         "steps": [
             {"id": "P9.1", "title": "Full demo run",
-             "detail": "Solar powered; stacked XOR with camera and fiber readout; the diode tube installed as W3's bridge; 20 trials.",
+             "detail": "Solar powered; stacked XOR with camera and fiber readout; the diode tube installed as W3's bridge; 20 trials. The demo reads its output through the fiber at W3 (A5, the OUT neuron), so first print a lid with fiber_wells = [[0,4]] in hardware/scad/plate_lid.scad; the P7 lid puts the fiber over W1.",
              "cmd": "python -m wetstack mvp-demo --trials 20", "photo": True},
             {"id": "P9.2", "title": "Generate the report",
              "cmd": "python -m wetstack report",

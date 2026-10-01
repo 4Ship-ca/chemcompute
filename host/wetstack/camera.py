@@ -39,7 +39,7 @@ class RealCamera:
         self.cv2 = cv2
         self.cap = cv2.VideoCapture(index)
         if not self.cap.isOpened():
-            raise RuntimeError(f"Camera {index} did not open. Check the index with --camera N.")
+            raise RuntimeError(f"Camera {index} did not open. Set camera_index in config/lab.json (try 0, 1, 2).")
         self.cap.set(cv2.CAP_PROP_FRAME_WIDTH, width)
         self.cap.set(cv2.CAP_PROP_FRAME_HEIGHT, height)
         self.rois = None

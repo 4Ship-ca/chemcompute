@@ -48,9 +48,10 @@ def now_iso() -> str:
     return dt.datetime.now().isoformat(timespec="seconds")
 
 
-def session_dir(tag: str) -> Path:
+def session_dir(tag: str, sim: bool) -> Path:
+    """Twin runs get a -sim suffix so .gitignore keeps them out of the bench record."""
     stamp = dt.datetime.now().strftime("%Y%m%d-%H%M%S")
-    d = DATA_DIR / f"{stamp}-{tag}"
+    d = DATA_DIR / f"{stamp}-{tag}{'-sim' if sim else ''}"
     d.mkdir(parents=True, exist_ok=True)
     return d
 

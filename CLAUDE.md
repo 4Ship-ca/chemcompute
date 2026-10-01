@@ -66,6 +66,7 @@ MVP (WetStack-0), the electro-chemical pH neuron:
 
 - After any change to Python, run `python -m wetstack selftest`. It must end `Self-test PASSED` (all ten gates, about 30 s).
 - After editing `tools/content.py` or `web/template.html`, run `python tools/build.py` and commit the regenerated files with the change.
+- After changing the CLI in `__main__.py` or any `cmd` in `tools/content.py`, run `python tests/test_cli.py` (must pass): every command the manual prints has to parse.
 - Firmware changes: keep the serial protocol and JSON field names in step with `host/wetstack/link.py` and the sim's `SimController` (same method names and return keys).
 - Every experiment must keep a `--sim` path. New gate criteria go in `content.py` with a machine-checkable `op` (`>=`, `<=`, `==`, `record`).
 - Commit after each session; tag passed gates (`git tag G3-pass`). Never rewrite `data/raw/`.
@@ -91,7 +92,7 @@ Not verified yet:
 ## Where JL is now
 
 Phase P0 (bench, safety, calibration) has not started. Next actions:
-1. Push this repo (the GitHub repo had a starter commit, so the first push needed `--force`).
+1. The repo is on GitHub (4Ship-ca/chemcompute). The import was merged onto the starter commit, history kept, on branch `claude/hopeful-edison-3iv9ys`; merge that branch into `main`. No force-push needed.
 2. P0.3: `python -m venv .venv`, activate, `pip install -e .`, `python -m wetstack selftest`, then `python -m wetstack serve --open` for every session.
 3. Order the Phase 0-1 items (micropipettes 100-1000 and 10-100 uL, 0.001 g scale, 24-well plates, A4 light pad, webcam with manual exposure, bromothymol blue, sodium carbonate, sodium sulfate, isopropyl alcohol). Order the AliExpress electronics for P3 at the same time because shipping is slow.
 4. P0.4-P0.7: scale check, pipette calibration (`python -m wetstack g0-pipette --volume 1000`, then `--volume 100`), safety sign-off (`python -m wetstack sign-safety`), then `python -m wetstack gate G0`.

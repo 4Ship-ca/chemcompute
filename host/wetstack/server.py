@@ -94,9 +94,17 @@ class Handler(BaseHTTPRequestHandler):
 
     def _body(self, limit: int) -> bytes:
         n = int(self.headers.get("Content-Length") or 0)
+        if n < 0:
+            raise ps.ProgressError("Bad Content-Length")       # read(-1) would block until the client hangs up
         if n > limit:
             raise ps.ProgressError(f"Upload too large ({n // 1048576} MB)")
         return self.rfile.read(n)
+
+    def _json_body(self, limit: int) -> dict:
+        body = json.loads(self._body(limit).decode("utf-8") or "{}")
+        if not isinstance(body, dict):
+            raise ps.ProgressError("Expected a JSON object")
+        return body
 
     # ---------------------------------------------------------------- GET
     def do_GET(self):
@@ -131,7 +139,7 @@ class Handler(BaseHTTPRequestHandler):
         if urlparse(self.path).path != "/api/progress":
             return self._send(404, {"error": "Not found"})
         try:
-            payload = json.loads(self._body(MAX_JSON).decode("utf-8"))
+            payload = self._json_body(MAX_JSON)
             base = payload.get("base_rev")
             with SERVER_LOCK:
                 doc, merged = ps.save(payload["doc"], base if isinstance(base, int) else None)
@@ -154,7 +162,7 @@ class Handler(BaseHTTPRequestHandler):
                 rel.write_bytes(data)
                 return self._send(200, {"file": rel.as_posix(), "bytes": len(data)})
             if url.path == "/api/commit":
-                body = json.loads(self._body(64 * 1024).decode("utf-8") or "{}")
+                body = self._json_body(64 * 1024)
                 msg = (body.get("message") or "").strip() or f"Lab session {dt.date.today().isoformat()}"
                 log = []
                 code, out = git(["add", "progress/progress.json", "PROGRESS.md", "photos", "data/raw", "proofs", "config"])

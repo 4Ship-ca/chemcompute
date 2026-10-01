@@ -418,7 +418,7 @@ Achievement: **First diode**
 
 - **H9.** LED-on minus LED-off fiber reads track camera absorbance across a dose sweep. _Pass:_ R-squared >= 0.95; with the plate covered, noise <= 3%. _Control:_ Fiber in an empty well reads constant.
 
-- [ ] **P7.1 Print fiber parts.** hardware/scad/fiber_parts.scad: the lid with a center fiber port, the LED coupler and the sensor cap. Clear resin or PETG, fully cured and washed. (photo)
+- [ ] **P7.1 Print fiber parts.** The lid with a fiber boss over W1 (hardware/stl/plate_lid_fiber_A3.stl; from hardware/scad/plate_lid.scad with fiber_wells = [[0,2]]), plus the LED coupler and the sensor cap (hardware/stl/fiber_led_coupler.stl and fiber_sensor_cap.stl; hardware/scad/fiber_parts.scad, part = "led" or "cap"). Opaque (black) PETG or resin so room light can't leak into the fiber; resin parts fully cured and washed. (photo)
 - [ ] **P7.2 Cut and polish fiber.** Cut 1 mm PMMA fiber with a fresh hot blade, polish each end on 2000-grit wet paper in figure-eights for 30 seconds.
 - [ ] **P7.3 Assemble and read.** Light pad below, fiber tip 2 mm above the liquid, far end in the sensor cap on the AS7341. `python -m wetstack spec --diff`
 - [ ] **P7.4 Dose sweep with both readers.** Camera and fiber read the same well through a dose sweep, then again with a dark cover over the plate (camera blinded). `python -m wetstack g7-fiber`
@@ -446,7 +446,7 @@ Achievement: **Fiber eyes**
 - **H10.** A 6 V panel with a single 18650 buffer runs a 4-hour daylight session of 100+ writes without a brownout. _Pass:_ >= 4 h, >= 100 writes, 0 brownouts; joules per write recorded. _Control:_ Same session on the wall adapter gives the same dose accuracy.
 
 - [ ] **P8.1 Build the power board.** Panel to CN3791 charger to protected 18650. Battery to INA219 to two MT3608 boosts: set one to 5.0 V (ESP32 5V pin) and one to 9.0 V (electrolysis supply) with the multimeter before connecting anything. (photo)
-- [ ] **P8.2 Daylight session.** Panel in a window or outside in shade-free light. The script cycles the 1 mM neuron and logs power. `python -m wetstack g8-solar --hours 4`
+- [ ] **P8.2 Daylight session.** Panel in a window or outside in shade-free light. The script cycles the 1 mM neuron and logs power. Block the laptop's USB 5 V line (a USB power-blocker adapter, or Kapton tape over the VBUS pin of the USB-A plug) so the battery is the controller's only supply; otherwise USB powers the ESP32 and a brownout can never show up. `python -m wetstack g8-solar --hours 4`
 
 **Gate G8: Sun-powered** (`python -m wetstack gate G8`)
 
@@ -471,7 +471,7 @@ Achievement: **Sun-powered**
 
 **Why.** Each gate proved a part. The MVP proves the parts work together.
 
-- [ ] **P9.1 Full demo run.** Solar powered; stacked XOR with camera and fiber readout; the diode tube installed as W3's bridge; 20 trials. `python -m wetstack mvp-demo --trials 20` (photo)
+- [ ] **P9.1 Full demo run.** Solar powered; stacked XOR with camera and fiber readout; the diode tube installed as W3's bridge; 20 trials. The demo reads its output through the fiber at W3 (A5, the OUT neuron), so first print a lid with fiber_wells = [[0,4]] in hardware/scad/plate_lid.scad; the P7 lid puts the fiber over W1. `python -m wetstack mvp-demo --trials 20` (photo)
 - [ ] **P9.2 Generate the report.** Collects every proof file into docs/MVP_REPORT.md. Commit, then git tag v1.0-mvp. `python -m wetstack report`
 - [ ] **P9.3 Debrief.** Upload the report and three photos to the workspace and ask for the lab-manager review. We plan WetStack-1 from what broke.
 

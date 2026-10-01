@@ -52,7 +52,7 @@ python -m wetstack gate G1 --sim
 | `config/lab.json` | Your bench settings (created on first run) |
 | `progress/progress.json` | Master progress record written by `python -m wetstack serve`; never edit by hand |
 | `photos/<step>/` | Bench photos, resized to 1600 px |
-| `tests/` | `test_progress.py` (storage, must pass) and `e2e_workspace.py` (browser test, needs Playwright) |
+| `tests/` | `test_progress.py` (storage) and `test_cli.py` (every manual command parses) must pass; `e2e_workspace.py` is the browser test (needs Playwright) |
 | `tools/content.py` | Single source for the manual, BOM and workspace; rebuild with `python tools/build.py` |
 | `web/` | Workspace page (offline copy works in any browser, saving to that browser only) |
 
